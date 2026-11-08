@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from mcp.server.fastmcp import FastMCP
 
-from . import changes, discovery, dlinkchanges, dlinkweb, webui
+from . import changes, discovery, dlinkchanges, dlinkweb, reports, webui
 
 mcp = FastMCP("switch-mcp")
 
@@ -67,57 +67,58 @@ def get_state(switch: str) -> dict:
 
 
 @mcp.tool()
-def plan_vlan_group(switch: str, group: int, ports: list[int], description: str | None = None) -> dict:
+def plan_vlan_group(switch: str, group: int, ports: list[int], description: str | None = None, allow_protected: bool = False) -> dict:
     """PLAN (does not write) a change of one port-based VLAN group (1-15) on a USRobotics switch: its member ports and optionally its
     8-character description. Returns a plan id, the exact differences, and risks such as ports that would stop reaching each other.
+    Ports listed as protected_ports for the switch in switches.json are refused unless allow_protected=true.
     Show the plan to the user, then call apply_plan."""
-    return changes.plan_vlan_group(switch, group, ports, description)
+    return changes.plan_vlan_group(switch, group, ports, description, allow_protected)
 
 
 @mcp.tool()
-def plan_port(switch: str, port: int, speed: str, flow_control: bool = False, qos: str = "Normal") -> dict:
+def plan_port(switch: str, port: int, speed: str, flow_control: bool = False, qos: str = "Normal", allow_protected: bool = False) -> dict:
     """PLAN (does not write) a port setting. speed: Auto, 100M Full, 100M Half, 10M Full, 10M Half or Disable. qos: Normal or High.
     flow_control only with Auto. Returns a plan id, differences and risks."""
-    return changes.plan_port(switch, port, speed, flow_control, qos)
+    return changes.plan_port(switch, port, speed, flow_control, qos, allow_protected)
 
 
 @mcp.tool()
-def plan_mirror(switch: str, mode: str, sniffer_port: int | None = None, source_port: int | None = None) -> dict:
+def plan_mirror(switch: str, mode: str, sniffer_port: int | None = None, source_port: int | None = None, allow_protected: bool = False) -> dict:
     """PLAN (does not write) the port mirror: mode Disable, Rx, Tx or Both; sniffer_port receives a copy of source_port's traffic."""
-    return changes.plan_mirror(switch, mode, sniffer_port, source_port)
+    return changes.plan_mirror(switch, mode, sniffer_port, source_port, allow_protected)
 
 
 @mcp.tool()
-def dlink_plan_vlan(switch: str, vid: int, untagged: list[int], tagged: list[int], name: str | None = None) -> dict:
+def dlink_plan_vlan(switch: str, vid: int, untagged: list[int], tagged: list[int], name: str | None = None, allow_protected: bool = False) -> dict:
     """PLAN (does not write) creating or editing an 802.1Q VLAN on a D-Link switch: which ports are untagged members and which tagged.
     Repeats the web page's rules (a port is untagged in only one VLAN) and reports risks such as ports leaving the management VLAN.
     Does not change a port's PVID: use dlink_plan_pvid for that. Show the plan to the user, then call apply_plan."""
-    return changes.register_dlink(switch, dlinkchanges.plan_vlan(switch, vid, name, untagged, tagged))
+    return changes.register_dlink(switch, dlinkchanges.plan_vlan(switch, vid, name, untagged, tagged, allow_protected))
 
 
 @mcp.tool()
-def dlink_plan_vlan_delete(switch: str, vid: int) -> dict:
+def dlink_plan_vlan_delete(switch: str, vid: int, allow_protected: bool = False) -> dict:
     """PLAN (does not write) deleting a D-Link 802.1Q VLAN (not VLAN 1, not the management VLAN, not one a port uses as its PVID)."""
-    return changes.register_dlink(switch, dlinkchanges.plan_vlan_delete(switch, vid))
+    return changes.register_dlink(switch, dlinkchanges.plan_vlan_delete(switch, vid, allow_protected))
 
 
 @mcp.tool()
-def dlink_plan_pvid(switch: str, pvids: dict[int, int]) -> dict:
+def dlink_plan_pvid(switch: str, pvids: dict[int, int], allow_protected: bool = False) -> dict:
     """PLAN (does not write) setting the PVID (the VLAN that untagged traffic from a port joins) for some D-Link ports: {port: vid}.
     A port's PVID must be a VLAN it is a member of."""
-    return changes.register_dlink(switch, dlinkchanges.plan_pvid(switch, {int(k): v for k, v in pvids.items()}))
+    return changes.register_dlink(switch, dlinkchanges.plan_pvid(switch, {int(k): v for k, v in pvids.items()}, allow_protected))
 
 
 @mcp.tool()
-def dlink_plan_port(switch: str, port: int, speed: str = "Auto", flow_control: bool = False) -> dict:
+def dlink_plan_port(switch: str, port: int, speed: str = "Auto", flow_control: bool = False, allow_protected: bool = False) -> dict:
     """PLAN (does not write) one D-Link port: speed Auto, 10M Half, 10M Full, 100M Half, 100M Full, 1000M Full or Disable."""
-    return changes.register_dlink(switch, dlinkchanges.plan_port(switch, port, speed, flow_control))
+    return changes.register_dlink(switch, dlinkchanges.plan_port(switch, port, speed, flow_control, allow_protected))
 
 
 @mcp.tool()
-def dlink_plan_mirror(switch: str, mode: str, sniffer_port: int | None = None, source_ports: list[int] | None = None) -> dict:
+def dlink_plan_mirror(switch: str, mode: str, sniffer_port: int | None = None, source_ports: list[int] | None = None, allow_protected: bool = False) -> dict:
     """PLAN (does not write) the D-Link port mirror: mode Disable, Rx, Tx or Both; sniffer_port gets a copy of the source ports' traffic."""
-    return changes.register_dlink(switch, dlinkchanges.plan_mirror(switch, mode, sniffer_port, source_ports or []))
+    return changes.register_dlink(switch, dlinkchanges.plan_mirror(switch, mode, sniffer_port, source_ports or [], allow_protected))
 
 
 @mcp.tool()
@@ -126,6 +127,24 @@ def apply_plan(plan_id: str, confirm: bool = False) -> dict:
     Re-reads the switch first and refuses if it changed, saves a snapshot, writes, reads back and verifies, and returns a rollback plan id.
     The switch applies the setting live but may not keep it across a power cut unless saved from its own web page."""
     return changes.apply_plan(plan_id, confirm)
+
+
+@mcp.tool()
+def backup_state(switch: str) -> dict:
+    """Save the parsed state of a switch (VLANs, ports, mirror) to a JSON file under ~/.local/state/switch-mcp/backups. Read-only on the switch."""
+    return reports.backup_state(switch)
+
+
+@mcp.tool()
+def list_snapshots(switch: str | None = None) -> list[dict]:
+    """The state files saved so far: backups, and the snapshot taken before every apply. Newest first."""
+    return reports.list_snapshots(switch)
+
+
+@mcp.tool()
+def describe_switch(switch: str) -> str:
+    """A markdown description of a switch's configuration (ports, VLANs, mirror), ready to paste into a wiki. Read-only."""
+    return reports.describe(switch)
 
 
 def main() -> None:

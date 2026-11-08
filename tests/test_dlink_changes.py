@@ -1,14 +1,14 @@
 import pytest
 
 from fakedlink import FakeDLink
-from switch_mcp import changes, dlinkchanges, dlinkweb, webui
+from switch_mcp import changes, safety, dlinkchanges, dlinkweb, webui
 
 
 @pytest.fixture
 def dl(monkeypatch, tmp_path):
     fake = FakeDLink()
     monkeypatch.setattr(webui, "TRANSPORT", fake.transport())
-    monkeypatch.setattr(changes, "STATE_DIR", tmp_path / "state")
+    monkeypatch.setattr(safety, "STATE_DIR", tmp_path / "state")
     monkeypatch.setenv("SWITCH_MCP_PASSWORD_DLINK_TEST", "pw")
     changes.PLANS.clear()
     return fake

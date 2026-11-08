@@ -6,6 +6,7 @@ page would reject is rejected at plan time. Risks are computed against the live 
 from __future__ import annotations
 
 from . import dlinkweb, webui
+from .safety import guard_protected
 
 PORTS = dlinkweb.PORTS
 
@@ -61,7 +62,7 @@ def _check_untag_unique(st: dict, vid: int, untagged: list[int]) -> None:
 
 
 # ---- plans (return the pieces changes.py needs) ---------------------------------------------------------------------------
-def plan_vlan(switch: str, vid: int, name: str | None, untagged: list[int], tagged: list[int]) -> dict:
+def plan_vlan(switch: str, vid: int, name: str | None, untagged: list[int], tagged: list[int], allow_protected: bool = False) -> dict:
     st = _state(switch)
     _require_8021q(st)
     cur = _vlan(st, vid)
@@ -72,6 +73,9 @@ def plan_vlan(switch: str, vid: int, name: str | None, untagged: list[int], tagg
     if not cur and len(st["vlan"]["vlans"]) >= 256:
         raise ValueError("too many VLANs")
     _check_untag_unique(st, vid, params["untagged"])
+    old = {p: "U" for p in (cur or {}).get("untagged", [])} | {p: "T" for p in (cur or {}).get("tagged", [])}
+    new = {p: "U" for p in params["untagged"]} | {p: "T" for p in params["tagged"]}
+    guard_protected(switch, {p for p in set(old) | set(new) if old.get(p) != new.get(p)}, allow_protected)
     if not params["untagged"] and not params["tagged"] and vid == 1:
         raise ValueError("VLAN 1 must keep at least one member")
     vlans_after = [params if v["vid"] == vid else v for v in st["vlan"]["vlans"]] + ([] if cur else [params])
@@ -81,7 +85,7 @@ def plan_vlan(switch: str, vid: int, name: str | None, untagged: list[int], tagg
     return {"op": "dl_vlan", "params": params, "before": cur, "summary": summary, "risks": _risks(st, vlans_after, _pvids(st))}
 
 
-def plan_vlan_delete(switch: str, vid: int) -> dict:
+def plan_vlan_delete(switch: str, vid: int, allow_protected: bool = False) -> dict:
     st = _state(switch)
     _require_8021q(st)
     cur = _vlan(st, vid)
@@ -96,13 +100,14 @@ def plan_vlan_delete(switch: str, vid: int) -> dict:
     using = [p["port"] for p in st["ports"] if p["pvid"] == vid]
     if using:
         raise ValueError(f"port(s) {using} still use VLAN {vid} as their PVID; change their PVID first")
+    guard_protected(switch, set(cur["untagged"]) | set(cur["tagged"]), allow_protected)
     vlans_after = [v for v in st["vlan"]["vlans"] if v["vid"] != vid]
     return {"op": "dl_vlan_delete", "params": {"vid": vid}, "before": cur,
             "summary": [f"delete VLAN {vid} ({cur['name']!r}, untagged {cur['untagged']}, tagged {cur['tagged']})"],
             "risks": _risks(st, vlans_after, _pvids(st))}
 
 
-def plan_pvid(switch: str, pvids: dict[int, int]) -> dict:
+def plan_pvid(switch: str, pvids: dict[int, int], allow_protected: bool = False) -> dict:
     st = _state(switch)
     _require_8021q(st)
     now = _pvids(st)
@@ -118,12 +123,13 @@ def plan_pvid(switch: str, pvids: dict[int, int]) -> dict:
             raise ValueError(f"port {port} is not a member of VLAN {after[port - 1]}; add it to that VLAN first")
     if after == now:
         raise ValueError("nothing to change")
+    guard_protected(switch, {p for p, (a, b) in enumerate(zip(now, after), 1) if a != b}, allow_protected)
     summary = [f"port {p:02d} PVID {a} -> {b}" for p, (a, b) in enumerate(zip(now, after), 1) if a != b]
     return {"op": "dl_pvid", "params": {"pvids": after}, "before": {"pvids": now}, "summary": summary,
             "risks": _risks(st, st["vlan"]["vlans"], after)}
 
 
-def plan_port(switch: str, port: int, speed: str, flow: bool) -> dict:
+def plan_port(switch: str, port: int, speed: str, flow: bool, allow_protected: bool = False) -> dict:
     st = _state(switch)
     cur = next((p for p in st["ports"] if p["port"] == port), None)
     if cur is None:
@@ -132,6 +138,7 @@ def plan_port(switch: str, port: int, speed: str, flow: bool) -> dict:
     params = {"port": port, "speed": speed, "flow": flow}
     if params == before:
         raise ValueError("nothing to change")
+    guard_protected(switch, {port}, allow_protected)
     summary = [f"port {port:02d}: {k} {before[k]!r} -> {params[k]!r}" for k in ("speed", "flow") if before[k] != params[k]]
     risks = []
     if cur["link"] != "Down":
@@ -142,7 +149,7 @@ def plan_port(switch: str, port: int, speed: str, flow: bool) -> dict:
     return {"op": "dl_port", "params": params, "before": before, "summary": summary, "risks": risks}
 
 
-def plan_mirror(switch: str, mode: str, sniffer_port: int | None, source_ports: list[int]) -> dict:
+def plan_mirror(switch: str, mode: str, sniffer_port: int | None, source_ports: list[int], allow_protected: bool = False) -> dict:
     st = _state(switch)
     m = st["mirror"]
     before = {"mode": m["mode"], "sniffer_port": m["sniffer_port"], "source_ports": m["source_ports"]}
@@ -153,6 +160,7 @@ def plan_mirror(switch: str, mode: str, sniffer_port: int | None, source_ports: 
             raise ValueError("mirroring needs a sniffer port and at least one different source port")
     if params == before:
         raise ValueError("nothing to change")
+    guard_protected(switch, {p for p in [params["sniffer_port"], before["sniffer_port"], *params["source_ports"], *before["source_ports"]] if p}, allow_protected)
     risks = []
     up = {p["port"]: p["link"] for p in st["ports"] if p["link"] != "Down"}
     if mode != "Disable" and sniffer_port in up:

@@ -1,14 +1,14 @@
 import pytest
 
 from fakeswitch import FakeSwitch
-from switch_mcp import changes, webui
+from switch_mcp import changes, safety, webui
 
 
 @pytest.fixture
 def sw(monkeypatch, tmp_path):
     fake = FakeSwitch(up_ports=(1, 2, 3, 4))
     monkeypatch.setattr(webui, "TRANSPORT", fake.transport())
-    monkeypatch.setattr(changes, "STATE_DIR", tmp_path / "state")
+    monkeypatch.setattr(safety, "STATE_DIR", tmp_path / "state")
     monkeypatch.setenv("SWITCH_MCP_PASSWORD_USR_TEST", "pw")
     changes.PLANS.clear()
     return fake

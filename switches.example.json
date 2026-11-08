@@ -1,4 +1,4 @@
 {
-  "usr-switch":  {"host": "192.0.2.3",    "vendor": "usrobotics"},
-  "dlink-switch": {"host": "198.51.100.3", "vendor": "dlink"}
+  "usr-switch":  {"host": "192.0.2.3",    "vendor": "usrobotics", "protected_ports": [24]},
+  "dlink-switch": {"host": "198.51.100.3", "vendor": "dlink",      "protected_ports": [8]}
 }

@@ -288,3 +288,8 @@ def open_session(name: str):
     if name not in switches:
         raise KeyError(f"unknown switch {name!r}; known: {sorted(switches)}")
     return dlinkweb.DLinkSession(name, switches) if switches[name]["vendor"] == "dlink" else Session(name, switches)
+
+
+def protected_ports(name: str) -> set[int]:
+    """Ports listed as "protected_ports" for a switch in switches.json (uplinks etc.). Plans touching them are refused unless allowed."""
+    return {int(p) for p in load_switches().get(name, {}).get("protected_ports", [])}

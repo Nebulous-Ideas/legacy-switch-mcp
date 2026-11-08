@@ -14,6 +14,7 @@ and refuses if it changed, saves a snapshot, writes, reads back to verify, and r
 | `discover(interface)`, `probe(host)` | UDP discovery (broadcast+multicast), or ask one switch by IP |
 | `get_state(switch)` | parsed state: VLANs, ports, mirror (and D-Link system/trunk) |
 | `read_page(switch, page)`, `overview(switch)` | raw page data |
+| `backup_state`, `list_snapshots`, `describe_switch` | save the parsed state; list saved states; markdown description for a wiki |
 | `plan_vlan_group`, `plan_port`, `plan_mirror` | USRobotics changes (plan only) |
 | `dlink_plan_vlan`, `dlink_plan_vlan_delete`, `dlink_plan_pvid`, `dlink_plan_port`, `dlink_plan_mirror` | D-Link changes (plan only) |
 | `apply_plan(plan_id, confirm=true)` | apply a plan from this server session |
@@ -36,6 +37,9 @@ claude mcp add switch -- uv run --project /path/to/switch-mcp switch-mcp
 ```
 
 ## Safety
+- **Protected ports**: list uplinks in `switches.json` (`"protected_ports": [24]`); plans that touch them are refused unless `allow_protected=true`.
+- **Rollback survives failure**: the rollback plan is written to disk before any write, so if the switch stops answering mid-change it can still be applied from a new session.
+- **Audit log**: every plan, refusal and apply is appended to `~/.local/state/switch-mcp/audit.jsonl` (no credentials).
 - Only five D-Link CGIs and three USRobotics forms can ever be posted. Password, reset, firmware, backup, IP/system, trunk and 802.1Q-mode changes cannot.
 - Plans live in server memory for 10 minutes; snapshots go to `~/.local/state/switch-mcp/`.
 - One web session at a time (these switches evict a second login), always logged out. If a human has the web page open, close it first.
@@ -58,4 +62,4 @@ claude mcp add switch -- uv run --project /path/to/switch-mcp switch-mcp
 
 The gated-write pattern here (dry run, risk checks, session-eviction caveat) follows the same approach; ideas flow both ways.
 
-See `docs/PROTOCOL.md` for everything learned about the wire formats.
+See `docs/PROTOCOL.md` for the wire formats and `docs/IDEAS.md` for what was borrowed from the projects above and a sketch of a multi-vendor umbrella (an idea only).
