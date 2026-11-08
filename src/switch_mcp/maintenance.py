@@ -312,6 +312,37 @@ def _apply_simple(plan, action: str) -> dict:
     return {"applied": True, "verified": out["back"], "snapshot": snap, "outage": out, "note": note}
 
 
+def reapply_usr_state(s, state: dict) -> list[str]:
+    """Put a saved parsed state (from backup_state) back onto a logged-in USRobotics session after a factory reset: system name/location/timeout, VLAN groups,
+    port speed/flow/QoS, and the address LAST because it moves the switch. Found on hardware 2026-11-08: uploading the switch's own config.bin after a reset
+    restored none of these, so this is how a reset is recovered on the 7724."""
+    webui.require_maintenance("re-applying a saved state")
+    done: list[str] = []
+    cur = s.state()
+    sysb = state.get("system")
+    if sysb and (cur["system"]["name"], cur["system"]["location"], cur["system"]["login_timeout_minutes"]) != (sysb["name"], sysb["location"], sysb["login_timeout_minutes"]):
+        s.write_system(sysb["name"], sysb["location"], sysb["login_timeout_minutes"])
+        done.append("system")
+    have = {g["group"]: g for g in cur["vlan"]}
+    for q in state["vlan"]:
+        if have.get(q["group"]) != q:
+            s.write_vlan(q["group"], q["description"], q["members"])
+            done.append(f"vlan {q['group']}")
+    want = {p["port"]: p for p in state["ports"]}
+    for p in cur["ports"]:
+        q = want[p["port"]]
+        if (p["speed_set"], p["flow_set"], p["qos"]) != (q["speed_set"], q["flow_set"], q["qos"]):
+            s.write_port(p["port"], q["speed_set"], q["flow_set"] == "Enable", q["qos"])
+            done.append(f"port {p['port']}")
+    if sysb and cur["system"]["ip"] != sysb["ip"]:
+        try:
+            s.write_ip(sysb["ip"], sysb["netmask"], sysb["gateway"])
+        except (httpx.HTTPError, OSError):
+            pass   # the switch moves to the new address mid-answer
+        done.append("address")
+    return done
+
+
 def apply(plan) -> dict:
     """Called by changes.apply_plan for maint_* plans, after the confirm/status/expiry checks."""
     webui.require_maintenance(plan.op.removeprefix("maint_"))

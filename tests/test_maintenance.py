@@ -224,3 +224,19 @@ def test_rotating_two_switches_keeps_both_previous_passwords(mt, monkeypatch):
     changes.apply_plan(maintenance.plan_password("usr-test")["id"], True)
     assert json.loads((webui.CONFIG_DIR / "passwords.prev.json").read_text()) == {"dlink-test": "pw", "usr-test": "pw"}
     assert not maintenance._login_ok("usr-test", password="pw")        # the old password is really refused after the change
+
+
+def test_reapply_usr_state_restores_what_a_reset_wipes(mt, monkeypatch):
+    usr, dl = mt
+    enable(monkeypatch)
+    with webui.open_session("usr-test") as s:
+        saved = s.state()
+    # simulate the mess a factory reset leaves: other names/members, flow control on, no name/location, another address
+    usr.groups[9]["desc"], usr.groups[10]["members"] = "x", [1, 2, 3]
+    usr.ports[5]["flow"] = True
+    usr.sys.update({"sys": "", "loc": "", "ip": ["192", "168", "0", "1"]})
+    with webui.open_session("usr-test") as s:
+        done = maintenance.reapply_usr_state(s, saved)
+    assert done[-1] == "address" and "system" in done and any(d.startswith("vlan") for d in done) and "port 5" in done
+    assert usr.sys["sys"] == saved["system"]["name"] and usr.sys["ip"] == ["192", "0", "2", "3"]
+    assert usr.groups[9]["desc"] == saved["vlan"][9]["description"] and len(usr.groups[10]["members"]) == 24 and usr.ports[5]["flow"] is False

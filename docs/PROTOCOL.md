@@ -60,3 +60,8 @@ D-Link: `backup.cgi` (configuration download; a POST without `pswType` gets no a
 USRobotics: left menu (`left.htm`) offers Port, VLAN, Trunking, Mirror, Status, Statistics, System, Trap, Password (`cgi_pass`: `old_pass`, `new_pass`, `renew_pass`, max 20, `post_url=cgi_pass.`),
 Backup Setting (`GET config.bin` downloads ~1.6 KB; restore is a multipart POST to `cgi_backup` with file field `web_upload` and the device reboots) and Reset Setting (`cgi_reset`, `post_url=cgi_reset.`). There is no firmware or reboot page.
 Factory address 192.168.0.1, password `admin`.
+
+## What a restore does and does not carry (tested 2026-11-08)
+D-Link `config.bin` (3720 bytes): carries VLANs, ports, trunking, the address and the admin password; an upload after a factory reset brings the switch back exactly as saved.
+USRobotics `config.bin` (1617 bytes): identical bytes before and after a password change, so it holds no password; after a factory reset, uploading it restored no VLAN groups (only group 1),
+no flow-control setting, no name/location and no address. The switch does reboot after the upload (~30 s) and the upload request itself times out.
