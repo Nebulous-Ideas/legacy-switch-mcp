@@ -1,0 +1,111 @@
+<html>
+<link rel=stylesheet href=form.css>
+<h1>Mirror Setting</h1>
+<form name=set_mirr action=cgi_mirror method=POST>
+<table border=1 width=420>
+<tr>
+ <td width=100 align=center><b>Sniffer Mode
+ <td width=320><select name=mode>
+ <option value=00 selected>Disable
+ <option value=01 >Rx
+ <option value=02 >Tx
+ <option value=03 >Both
+ </select>
+
+<tr>
+ <td align=center><b>Sniffer Port
+ <td><select name=sniffer>
+ <option value=99>
+ <option value=00 >01
+ <option value=01 >02
+ <option value=02 >03
+ <option value=03 >04
+ <option value=04 >05
+ <option value=05 >06
+ <option value=06 >07
+ <option value=07 >08
+ <option value=08 >09
+ <option value=09 >10
+ <option value=10 >11
+ <option value=11 >12
+ <option value=12 >13
+ <option value=13 >14
+ <option value=14 >15
+ <option value=15 >16
+ <option value=16 >17
+ <option value=17 >18
+ <option value=18 >19
+ <option value=19 >20
+ <option value=20 >21
+ <option value=21 >22
+ <option value=22 >23
+ <option value=23 >24
+ </select>
+
+<tr>
+ <td align=center><b>Source Port
+ <td><select name=source>
+ <option value=99>
+ <option value=00 >01
+ <option value=01 >02
+ <option value=02 >03
+ <option value=03 >04
+ <option value=04 >05
+ <option value=05 >06
+ <option value=06 >07
+ <option value=07 >08
+ <option value=08 >09
+ <option value=09 >10
+ <option value=10 >11
+ <option value=11 >12
+ <option value=12 >13
+ <option value=13 >14
+ <option value=14 >15
+ <option value=15 >16
+ <option value=16 >17
+ <option value=17 >18
+ <option value=18 >19
+ <option value=19 >20
+ <option value=20 >21
+ <option value=21 >22
+ <option value=22 >23
+ <option value=23 >24
+ </select>
+</table>
+<input type=hidden name=post_url value=cgi_mirror.>
+</form>
+
+<table width=320>
+ <td align=right><input type=submit value='Apply' onclick=apply()>
+</table>
+<script language=JavaScript>
+function apply()
+{
+ d=document.set_mirr;
+ v=d.sniffer.value;
+ s=d.source.value;
+ if (d.mode.value == 0)
+ {
+  d.submit();
+  return;
+ }
+ if (v==99)
+ {
+  window.alert('Must select the sniffer port');
+  return;
+ }
+ if (s==99)
+ {
+  window.alert('Must select the source port');
+  return;
+ }
+ if (s==v)
+ {
+  window.alert('Source port cannot be the same as sniffer port');
+  return;
+ }
+ d.submit();
+ return;
+}
+</script>
+</html>

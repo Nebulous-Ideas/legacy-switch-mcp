@@ -1,0 +1,125 @@
+<html>
+<body link=#333333 alink=#ff6633 vlink=#ff6633>
+<link rel=stylesheet href=form.css>
+<form name=tag_s method=GET>
+<table width=90%>
+ <td width=160><font><h1>Port-based VLAN</h1>
+</table>
+</form>
+<form name=tag method=POST>
+<input type=hidden name=vtype>
+<input type=hidden name=post_url value=cgi_setvtype.>
+</form>
+<table border=1 width=90%>
+<tr align=center>
+ <td width=30><b>ID
+ <td width=80><b>Description
+ <td><b>Member
+
+
+<tr>
+ <td align=center><a href=cgi_setvlan=0><b>01
+ <td>Default
+ <td>01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 
+
+<tr>
+ <td align=center><a href=cgi_setvlan=1><b>02
+ <td>2
+ <td>01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 
+
+<tr>
+ <td align=center><a href=cgi_setvlan=2><b>03
+ <td>3
+ <td>01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 
+
+<tr>
+ <td align=center><a href=cgi_setvlan=3><b>04
+ <td>4
+ <td>01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 
+
+<tr>
+ <td align=center><a href=cgi_setvlan=4><b>05
+ <td>5
+ <td>01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 
+
+<tr>
+ <td align=center><a href=cgi_setvlan=5><b>06
+ <td>6
+ <td>01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 
+
+<tr>
+ <td align=center><a href=cgi_setvlan=6><b>07
+ <td>7
+ <td>01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 
+
+<tr>
+ <td align=center><a href=cgi_setvlan=7><b>08
+ <td>8
+ <td>01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 
+
+<tr>
+ <td align=center><a href=cgi_setvlan=8><b>09
+ <td>9
+ <td>01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 
+
+<tr>
+ <td align=center><a href=cgi_setvlan=9><b>10
+ <td>GuestWif
+ <td>01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 
+
+<tr>
+ <td align=center><a href=cgi_setvlan=10><b>11
+ <td>IoT
+ <td>01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 
+
+<tr>
+ <td align=center><a href=cgi_setvlan=11><b>12
+ <td>&nbsp;
+ <td>01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 
+
+<tr>
+ <td align=center><a href=cgi_setvlan=12><b>13
+ <td>&nbsp;
+ <td>01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 
+
+<tr>
+ <td align=center><a href=cgi_setvlan=13><b>14
+ <td>&nbsp;
+ <td>01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 
+
+<tr>
+ <td align=center><a href=cgi_setvlan=14><b>15
+ <td>&nbsp;
+ <td>01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 
+</table>
+<form name=add_vlan action=cgi_addvlan method=GET>
+ <input type=hidden name=num value=15>
+</form>
+<form name=del_vlan action=cgi_delvlan method=GET>
+</form>
+<table width=90%>
+ <td width=35%>
+ <td width=25%><input type=button value='Add&nbsp; Group' onclick=add_check()>
+ <td><input type=button value='Delete&nbsp; Group' onclick=del_check()>
+</table>
+<script language=JavaScript>
+function del_check()
+{
+ if (document.add_vlan.num.value == 0)
+ {
+  alert('No VLAN Group');
+  return;
+ }
+ document.del_vlan.submit();
+}
+function add_check()
+{
+ if (document.add_vlan.num.value == 24)
+ {
+  alert('Exceed maximum VLAN Group');
+  return;
+ }
+ document.add_vlan.submit();
+}
+</script>
+</html>

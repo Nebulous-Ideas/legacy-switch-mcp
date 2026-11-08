@@ -1,0 +1,117 @@
+<html>
+<link rel=stylesheet href=form.css>
+<form name=vlan method=POST>
+<h1>VLAN Setting<h1>
+<input type=hidden value=10 name=vlan_id>
+<table border=1 width=390>
+<tr align=center>
+ <td><b>ID
+ <td><b>11
+
+<tr align=center>
+ <td><b>Description
+ <td><input type=text value='IoT' size=10 maxlength=8 name=desc>
+
+<tr>
+ <td align=center><b>Port
+ <td>
+ <table border=0 width=100%>
+
+ <tr align=center>
+  <td><b>01
+  <td><b>02
+  <td><b>03
+  <td><b>04
+  <td><b>05
+  <td><b>06
+  <td><b>07
+  <td><b>08
+  <td><b>09
+  <td><b>10
+  <td><b>11
+  <td><b>12
+
+ <tr align=center>
+  <td><input type=checkbox name=vcb value=00 checked>
+  <td><input type=checkbox name=vcb value=01 checked>
+  <td><input type=checkbox name=vcb value=02 checked>
+  <td><input type=checkbox name=vcb value=03 checked>
+  <td><input type=checkbox name=vcb value=04 checked>
+  <td><input type=checkbox name=vcb value=05 checked>
+  <td><input type=checkbox name=vcb value=06 checked>
+  <td><input type=checkbox name=vcb value=07 checked>
+  <td><input type=checkbox name=vcb value=08 checked>
+  <td><input type=checkbox name=vcb value=09 checked>
+  <td><input type=checkbox name=vcb value=10 checked>
+  <td><input type=checkbox name=vcb value=11 checked>
+
+ <tr align=center>
+  <td><b>13
+  <td><b>14
+  <td><b>15
+  <td><b>16
+  <td><b>17
+  <td><b>18
+  <td><b>19
+  <td><b>20
+  <td><b>21
+  <td><b>22
+  <td><b>23
+  <td><b>24
+
+ <tr align=center>
+  <td><input type=checkbox name=vcb value=12 checked>
+  <td><input type=checkbox name=vcb value=13 checked>
+  <td><input type=checkbox name=vcb value=14 checked>
+  <td><input type=checkbox name=vcb value=15 checked>
+  <td><input type=checkbox name=vcb value=16 checked>
+  <td><input type=checkbox name=vcb value=17 checked>
+  <td><input type=checkbox name=vcb value=18 checked>
+  <td><input type=checkbox name=vcb value=19 checked>
+  <td><input type=checkbox name=vcb value=20 checked>
+  <td><input type=checkbox name=vcb value=21 checked>
+  <td><input type=checkbox name=vcb value=22 checked>
+  <td><input type=checkbox name=vcb value=23 checked>
+
+ </table>
+</table>
+<br>
+<input type=hidden name=post_url value=cgi_vlan.>
+<table width=390>
+<tr align=center>
+ <td><input type=button value='Apply' onClick=apply_chk()>
+ <td><input type=button value='Set all' onClick=enable_all()>
+ <td><input type=button value='Clear all' onClick=disable_all()>
+
+</table>
+</form>
+<script language=JavaScript>
+function enable_all()
+{
+ for (var i=0; i<24; i++)
+ {
+  document.vlan.vcb[i].checked = true;
+ }
+}
+function disable_all()
+{
+ for (var i=0; i<24; i++)
+ {
+  document.vlan.vcb[i].checked = false;
+ }
+}
+function apply_chk()
+{
+var f=document.vlan;
+ for (var i=0; i<24; i++)
+ {
+  if (f.vcb[i].checked == true)
+  {
+   f.submit();
+   return;
+  }
+ }
+ alert('At least one port must be selected.');
+}
+</script>
+</html>

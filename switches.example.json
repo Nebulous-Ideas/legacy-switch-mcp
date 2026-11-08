@@ -1,0 +1,4 @@
+{
+  "usr-switch":  {"host": "192.0.2.3",    "vendor": "usrobotics"},
+  "dlink-switch": {"host": "198.51.100.3", "vendor": "dlink"}
+}

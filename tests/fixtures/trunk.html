@@ -1,0 +1,39 @@
+<html>
+<link rel=stylesheet href=form.css>
+<h1>Trunk Setting</h1>
+<b>All selected ports in a trunk should belong to the same set of VLAN IDs
+<form method=POST>
+<table border=1 width=190>
+<tr align=center>
+ <td width=30><b>ID
+ <td><b>Member
+
+<tr>
+ <td align=center><b>01
+ <td><select name=t0>
+  <option value=00>Disable
+  <option value=01 >01,02
+  <option value=02 >01,02,03,04
+
+<tr>
+ <td align=center><b>02
+ <td><select name=t1>
+  <option value=00>Disable
+  <option value=05 >09,10
+  <option value=06 >09,10,11,12
+
+<tr>
+ <td align=center><b>03
+ <td><select name=t2>
+  <option value=00>Disable
+  <option value=09 >17,18
+  <option value=10 >17,18,19,20
+
+</table>
+<br>
+<table width=190>
+ <td align=right><input type=submit value=' Apply '>
+</table>
+<input type=hidden name=post_url value=cgi_trunk.>
+</form>
+</html>

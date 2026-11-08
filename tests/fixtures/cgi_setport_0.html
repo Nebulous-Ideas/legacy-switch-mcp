@@ -1,0 +1,87 @@
+<html>
+<link rel=stylesheet href=form.css>
+<h1>PORT Settings</h1>
+<form name=portset method=POST>
+<input type=hidden name=port value=0>
+<table width=400>
+ <b>Please ensure that port is configured for same speed as link partner.<br>
+ Otherwise, packet loss or link error might occur.</b><br><br>
+</table>
+<table border=1 width=340>
+<tr align=center>
+ <td width=40><b>ID
+ <td width=100><b>Speed
+ <td width=100><b>Flow Control
+ <td width=100><b>QoS
+
+<tr align=center>
+ <td><b>01
+ <td>
+ <select name=speed onchange=speed_chg(value)>
+ <option value=1 >100M Full
+ <option value=2 >100M Half
+ <option value=3 >10M Full
+ <option value=4 >10M Half
+ <option value=5 selected>Auto
+ <option value=6 >Disable
+ </select>
+ <td>
+ <select name=flow>
+ <option value=0>Disable
+ <option value=1 >Enable
+ </select>
+ <td>
+ <select name=qos>
+  <option value=0>Normal
+  <option value=1 >High
+  </select>
+</table>
+<br>
+<table width=340>
+ <td align=right><input type=button value=' Apply ' onClick=warning()>
+</table>
+<input type=hidden name=set_flow>
+<input type=hidden name=set_qos>
+<input type=hidden name=post_url value=cgi_port.>
+</form>
+<script language=JavaScript>
+function warning()
+{
+ var d=document.portset;
+ if (d.speed.value == 6)
+ {
+  if (! window.confirm('Please make sure port 01 is not in use'))
+   return;
+ }
+ else if (d.speed.value == 0)
+ {
+  if (! window.confirm('The speed mode is set to force mode.\n\n\* The speed mode must be same as the link partner.\n'))
+   return;
+ }
+ else if (d.speed.value != 5)
+ {
+  if (! window.confirm('The speed mode is set to force mode.\n\n\* The speed mode must be same as the link partner.\n\* The Auto-MDIX function is disabled.'))
+   return;
+ }
+
+ d.set_flow.value = d.flow.value;
+ d.set_qos.value = d.qos.value;
+ d.submit();
+}
+function speed_chg(speed)
+{
+ var d=document.portset;
+ d.flow.value = 0;
+ d.flow.disabled = true;
+
+ if (speed != 6)
+ {
+  if (speed == 5)
+  {
+   d.flow.value = 1;
+   d.flow.disabled = false;
+  }
+ }
+}
+</script>
+</html>
