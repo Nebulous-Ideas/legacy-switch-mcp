@@ -38,6 +38,15 @@ Register with Claude Code only for switch work (every MCP server adds tool schem
 claude mcp add switch -- uv run --project /path/to/switch-mcp switch-mcp
 ```
 
+## Testing
+```bash
+uv sync --extra dev && uv run pytest            # 105 tests against the fake switches; no hardware needed
+uv run python scripts/e2e_check.py <dlink-switch> <trunk-group> <port> <port>   # real MCP stdio check against a D-Link, on IDLE ports only
+```
+`e2e_check.py` starts the server as a client would, round-trips a system-location change and a trunk on the two idle ports you name (each rolled back), downloads a config, and
+checks that a reboot plan is refused while maintenance is off. Run it only against a switch where those ports have no link; it leaves the switch as it found it.
+Hardware-only checks (outages, factory reset, password) are in `scripts/maint.py`, `scripts/rotate_password.py` and `scripts/recover_after_reset.py`; see `docs/ADDING-SWITCHES.md` for the proof sequence.
+
 ## Safety
 - **Protected ports**: list uplinks in `switches.json` (`"protected_ports": [24]`); plans that touch them are refused unless `allow_protected=true`.
 - **Rollback survives failure**: the rollback plan is written to disk before any write, so if the switch stops answering mid-change it can still be applied from a new session.
@@ -61,10 +70,11 @@ claude mcp add switch -- uv run --project /path/to/switch-mcp switch-mcp
 | Reads (both) | proven on hardware |
 | USRobotics writes: VLAN group, port, mirror | proven on hardware (round trips, switch left as found) |
 | USRobotics write: trunk | proven on hardware 2026-11-08 (ports 17+18, both idle; answers in ~11 s, so the write has a 45 s timeout) |
-| USRobotics write: system name/location/timeout | fake switch only (the page also holds the IP settings, which are read back and re-sent unchanged) |
+| USRobotics write: system name/location/timeout | proven on hardware 2026-11-08 (location set and restored; the page also holds the IP settings, which are read back and re-sent unchanged, and did not change) |
 | D-Link writes: VLAN add/delete, PVID, port, mirror | proven on hardware 2026-11-08 (unused port 8, VLAN 999; every write verified by read-back and rolled back, switch left identical to its backup) |
 | D-Link writes: system name/location/timeout, save configuration | proven on hardware 2026-11-08 (location set and restored; save has no read-back) |
-| D-Link writes: trunks | fake switch only (turning trunking on is a switch-wide setting; not yet run on hardware) |
+| D-Link writes: trunks | proven on hardware 2026-11-08 (idle ports 6+7: trunking switched on, group created, then removed and trunking switched off; no ping loss on the other ports) |
+| The MCP tool layer (33 tools over stdio) | proven against a real D-Link with `scripts/e2e_check.py` (plan -> apply -> rollback through the registered tools, gate refusal, downloads) |
 
 ### Found on hardware (the fake switches could not have told us)
 - **USRobotics login check was wrong**: the reply to a wrong password has no login form (it only appears on the next page), so every password looked valid. Logins now fetch a real page and require it not to be the login form. This also made "verify the new password by logging in" meaningful for the USRobotics.
