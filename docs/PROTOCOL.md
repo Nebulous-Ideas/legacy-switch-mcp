@@ -33,3 +33,30 @@ USRobotics build's source paths). Everything here was observed on real devices o
   `q_vlan_set_pvid.cgi` (`Pvid` x ports), `set_port.cgi` (`port_f`, `port_t`, `speed` index, `flow`), `PortMirroring.cgi` (`cEn`, `sTagP`, `sMode`, `rSrcP`).
 - Supports 802.1Q. The page's JavaScript enforces rules a client must repeat: a port is untagged in only one VLAN, a PVID must be a VLAN the port is in.
 - Verified on hardware: VLAN add and delete. Not yet verified on hardware: PVID, port and mirror writes.
+
+## D-Link web interface map (DGS-1100-08, firmware 1.10.039; read from the switch's own pages 2026-11-08)
+The UI is a JavaScript frameset. `index.htm` sets `RT` (the firmware folder); `Prefix.js` defines the folders (`DS/` data, `iss/` pages, `tree/` menu); `en.js` maps menu entries to page files
+(`HTML0125=ISD+'H_25_Mirroring.htm'`). Every page builds a form and calls `submitForm(form, "<name>.cgi")`; the CGI name and the control names are the whole write protocol.
+| Page (`iss/`) | CGI(s) and fields |
+|---|---|
+| `H_11_Sys_DHCP.htm` | `set_sys.cgi` (`sys`, `loc`, `SysTimeout` 3-30); `set_ip.cgi` (`dhcp` 0 static/1 DHCP, `ip`, `submask`, `gateway`, `dhcptm`) |
+| `H_13_Port_Setting.htm` | `set_port.cgi` (`port_f`, `port_t`, `speed` index, `flow`) |
+| `H_15_PWD.htm` | `changing_pw.cgi` (`old_pass`, `new_pass`, `renew_pass`, sent as typed) |
+| `H_22_Trunking.htm` | `TrunkingStatus.cgi` (`enabled_flag` 1/0), `TrunkingSetting.cgi` (`Group`, `GroupMember` 8-char bitmap), `TrunkingDelMems.cgi` (`Group`); group g owns ports 4g-3..4g, 2-4 members; the page refuses members that differ in speed, PVID, VLAN membership, bandwidth, priority, or that are mirror sniffer / loop-detection / static-MAC / traffic-segmentation ports |
+| `H_25_Mirroring.htm` | `PortMirroring.cgi` (`cEn` 1/0, `sTagP`, `sMode`, `rSrcP`); disabling must still send the current `sTagP`, `sMode`, `rSrcP` (see README) |
+| `H_05_Save.htm` | `save.cgi` (no fields): running configuration to flash |
+| `H_02_Configuration.htm` | `backup.cgi`, `restore.cgi` (multipart upload) |
+| `H_03_Firmware.htm` | `FWBackup.cgi`, `FWUpgrade.cgi` |
+| `H_04_Reboot.htm`, `H_01_Reset.htm` | `reboot.cgi`, `reset.cgi` |
+Limits live in `DS/const.js` (`g_MinTmOut` 3, `g_MaxTmOut` 30, `g_TrunkNum` 2, `g_MaxTkPtNum` 4, `g_PortNum` 8). Radios named `...Enable` use value 1 for Enable and 0 for Disable.
+
+## USRobotics 7724 trunk and system pages
+`cgi_trunk`: three selects `t0`..`t2` (groups 1-3: ports 1-4, 9-12, 17-20 in fixed sets: `00` Disable, then 2- and 4-port options), posted together with `post_url=cgi_trunk.`; the answer takes ~11.4 s.
+`cgi_sys`: `sys`, `loc`, `login` (3-30), then the IP fields `ip`/`mk`/`gw` (four octet boxes each), `post_url=cgi_sys.`; one form, so the IP settings must be sent back unchanged.
+
+## Maintenance pages and downloads (read 2026-11-08; the downloads were run on hardware, the changes were not)
+D-Link: `backup.cgi` (configuration download; a POST without `pswType` gets no answer, `pswType=1` returns `config.bin`, 3720 bytes, which contains the admin password); `FWBackup.cgi` (`firmware.bin`, 739,772 bytes);
+`restore.cgi` (multipart, field `file`, the name must end in `.bin`); `reboot.cgi`, `reset.cgi` (no fields; the switch drops the connection); `changing_pw.cgi`; `set_ip.cgi`. The factory address is 10.90.90.90 and the factory password `admin`.
+USRobotics: left menu (`left.htm`) offers Port, VLAN, Trunking, Mirror, Status, Statistics, System, Trap, Password (`cgi_pass`: `old_pass`, `new_pass`, `renew_pass`, max 20, `post_url=cgi_pass.`),
+Backup Setting (`GET config.bin` downloads ~1.6 KB; restore is a multipart POST to `cgi_backup` with file field `web_upload` and the device reboots) and Reset Setting (`cgi_reset`, `post_url=cgi_reset.`). There is no firmware or reboot page.
+Factory address 192.168.0.1, password `admin`.

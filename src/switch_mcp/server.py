@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from mcp.server.fastmcp import FastMCP
 
-from . import changes, discovery, dlinkchanges, dlinkweb, reports, webui
+from . import changes, discovery, dlinkchanges, dlinkweb, maintenance, reports, webui
 
 mcp = FastMCP("switch-mcp")
 
@@ -89,6 +89,19 @@ def plan_mirror(switch: str, mode: str, sniffer_port: int | None = None, source_
 
 
 @mcp.tool()
+def plan_system(switch: str, name: str | None = None, location: str | None = None, login_timeout_minutes: int | None = None) -> dict:
+    """PLAN (does not write) the USRobotics system name and location (up to 15 letters/digits/space/./-/_) and web login timeout (3-30 minutes).
+    The IP settings on the same page are read and sent back unchanged."""
+    return changes.plan_system(switch, name, location, login_timeout_minutes)
+
+
+@mcp.tool()
+def plan_trunk(switch: str, group: int, ports: list[int], allow_protected: bool = False) -> dict:
+    """PLAN (does not write) a USRobotics trunk group (1-3). Each group offers only fixed port sets (see get_state trunk[].options); pass [] to disable."""
+    return changes.plan_trunk(switch, group, ports, allow_protected)
+
+
+@mcp.tool()
 def dlink_plan_vlan(switch: str, vid: int, untagged: list[int], tagged: list[int], name: str | None = None, allow_protected: bool = False) -> dict:
     """PLAN (does not write) creating or editing an 802.1Q VLAN on a D-Link switch: which ports are untagged members and which tagged.
     Repeats the web page's rules (a port is untagged in only one VLAN) and reports risks such as ports leaving the management VLAN.
@@ -122,10 +135,89 @@ def dlink_plan_mirror(switch: str, mode: str, sniffer_port: int | None = None, s
 
 
 @mcp.tool()
+def dlink_plan_system(switch: str, name: str | None = None, location: str | None = None, login_timeout_minutes: int | None = None) -> dict:
+    """PLAN (does not write) the D-Link system name (up to 20 letters/digits/space/./-/_), location and web login timeout (3-30 minutes)."""
+    return changes.register_dlink(switch, dlinkchanges.plan_system(switch, name, location, login_timeout_minutes))
+
+
+@mcp.tool()
+def dlink_plan_save(switch: str) -> dict:
+    """PLAN (does not write) saving the D-Link's running configuration to flash, so it survives a power cut. Saves everything currently running."""
+    return changes.register_dlink(switch, dlinkchanges.plan_save(switch))
+
+
+@mcp.tool()
+def dlink_plan_trunk(switch: str, group: int, ports: list[int], allow_protected: bool = False) -> dict:
+    """PLAN (does not write) a D-Link link-aggregation group: group 1 takes ports 1-4, group 2 ports 5-8, 2-4 members. Repeats the web page's checks
+    (same speed, PVID and VLAN membership, no mirror/loop-detection conflicts). Switches trunking on for the whole switch if it is off."""
+    return changes.register_dlink(switch, dlinkchanges.plan_trunk(switch, group, ports, allow_protected))
+
+
+@mcp.tool()
+def dlink_plan_trunk_delete(switch: str, group: int, allow_protected: bool = False) -> dict:
+    """PLAN (does not write) removing all members of a D-Link trunk group."""
+    return changes.register_dlink(switch, dlinkchanges.plan_trunk_delete(switch, group, allow_protected))
+
+
+@mcp.tool()
+def backup_config(switch: str) -> dict:
+    """Download a switch's configuration file into the state directory (mode 0600). Read-only on the switch. The file is a secret (the D-Link's holds the
+    admin password), so only its id, size and checksum are returned. USRobotics: ~1.6 KB; D-Link: ~3.7 KB."""
+    return maintenance.backup_config(switch)
+
+
+@mcp.tool()
+def backup_firmware(switch: str) -> dict:
+    """Download the D-Link's running firmware image (~740 KB) into the state directory. Read-only. The USRobotics web interface has no firmware download."""
+    return maintenance.backup_firmware(switch)
+
+
+@mcp.tool()
+def list_files(switch: str | None = None) -> list[dict]:
+    """Configuration and firmware files saved by backup_config / backup_firmware (id, size, time; never the content). Newest first."""
+    return maintenance.list_files(switch)
+
+
+@mcp.tool()
+def plan_password(switch: str) -> dict:
+    """PLAN (does not write) changing a switch's web password. The server generates a random 16-character password, never shows it, verifies it by logging in
+    and stores it in passwords.json (old one kept in passwords.prev.json). Applying needs the server to be started with SWITCH_MCP_ENABLE_MAINTENANCE=1."""
+    return maintenance.plan_password(switch)
+
+
+@mcp.tool()
+def plan_ip(switch: str, ip: str, netmask: str, gateway: str, allow_ip_change: bool = False) -> dict:
+    """PLAN (does not write) a new static management address. Refused unless allow_ip_change=true, if the address answers a ping, or if it is not in the
+    gateway's subnet. Afterwards the new address is verified by logging in and switches.json is updated. Needs SWITCH_MCP_ENABLE_MAINTENANCE=1 to apply."""
+    return maintenance.plan_ip(switch, ip, netmask, gateway, allow_ip_change)
+
+
+@mcp.tool()
+def plan_reboot(switch: str, allow_protected: bool = False) -> dict:
+    """PLAN (does not write) rebooting a D-Link (the USRobotics has no reboot page). Every port drops; refused while protected ports exist unless
+    allow_protected=true. Needs SWITCH_MCP_ENABLE_MAINTENANCE=1 to apply."""
+    return maintenance.plan_reboot(switch, allow_protected)
+
+
+@mcp.tool()
+def plan_factory_reset(switch: str, allow_protected: bool = False) -> dict:
+    """PLAN a factory reset (address, password and every setting back to defaults). The plan itself saves the parsed state and the configuration file first.
+    Needs allow_protected=true when protected ports exist and SWITCH_MCP_ENABLE_MAINTENANCE=1 to apply."""
+    return maintenance.plan_factory_reset(switch, allow_protected)
+
+
+@mcp.tool()
+def plan_restore_config(switch: str, file_id: str, allow_protected: bool = False) -> dict:
+    """PLAN restoring a configuration file previously saved by backup_config (list_files shows the ids). The switch reboots. Needs
+    allow_protected=true when protected ports exist and SWITCH_MCP_ENABLE_MAINTENANCE=1 to apply."""
+    return maintenance.plan_restore_config(switch, file_id, allow_protected)
+
+
+@mcp.tool()
 def apply_plan(plan_id: str, confirm: bool = False) -> dict:
     """APPLY a plan made in this server session. Needs confirm=true, which must only be set after the user has seen the plan and agreed.
     Re-reads the switch first and refuses if it changed, saves a snapshot, writes, reads back and verifies, and returns a rollback plan id.
-    The switch applies the setting live but may not keep it across a power cut unless saved from its own web page."""
+    The switch applies the setting live but may not keep it across a power cut unless saved (D-Link: dlink_plan_save; USRobotics: from its web page)."""
     return changes.apply_plan(plan_id, confirm)
 
 

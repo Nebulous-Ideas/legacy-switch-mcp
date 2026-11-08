@@ -25,7 +25,13 @@ DATA_FILES = {
     "trunk": "trunking.js",
 }
 PORTS = 8
-WRITE_CGIS = {"q_vlan_add_edit.cgi", "q_vlan_del.cgi", "q_vlan_set_pvid.cgi", "set_port.cgi", "PortMirroring.cgi"}
+WRITE_CGIS = {"q_vlan_add_edit.cgi", "q_vlan_del.cgi", "q_vlan_set_pvid.cgi", "set_port.cgi", "PortMirroring.cgi",
+              "set_sys.cgi", "save.cgi", "TrunkingStatus.cgi", "TrunkingSetting.cgi", "TrunkingDelMems.cgi"}
+DOWNLOAD_CGIS = {"backup.cgi", "FWBackup.cgi"}   # POSTs that only download a file
+MAINT_CGIS = {"changing_pw.cgi", "set_ip.cgi", "reboot.cgi", "reset.cgi", "restore.cgi"}   # need SWITCH_MCP_ENABLE_MAINTENANCE=1
+SLOW_WRITE_TIMEOUT = 45.0   # trunk changes are slow on the USRobotics (11.4 s measured); assumed similar here until measured
+TRUNK_GROUPS, TRUNK_MAX_PORTS = 2, 4   # const.js: g_TrunkNum, g_MaxTkPtNum; group g owns ports 4g-3..4g
+TIMEOUT_MIN, TIMEOUT_MAX = 3, 30        # const.js: g_MinTmOut, g_MaxTmOut (web session timeout, minutes)
 MIRROR_MODES = ["Disable", "Rx", "Tx", "Both"]  # ds_MirrorEn: 0 off, then 1/2/3 = sniffer mode index + 1
 PORT_STATE = ["Down", "Error Disabled", "10M Half", "10M Full", "100M Half", "100M Full", "1000M Full", "1000M Full"]
 PORT_SPEED = ["Disable", "Auto", "10M Half", "10M Full", "100M Half", "100M Full", "1000M Full", "1000M Full"]
@@ -67,7 +73,8 @@ def build_state(files: dict[str, dict]) -> dict:
         "mirror": {"enabled": mirror["ds_MirrorEn"] != 0, "mode": MIRROR_MODES[mirror["ds_MirrorEn"]],
                    "sniffer_port": mirror["ds_MirrTag"] if mirror["ds_MirrorEn"] else None,
                    "source_ports": [i + 1 for i, c in enumerate(src) if c == "1"] if mirror["ds_MirrorEn"] else []},
-        "trunk": {"enabled": files["trunk"].get("ds_TrunkStat") == 1, "groups": files["trunk"].get("ds_TrunkList")},
+        "trunk": {"enabled": files["trunk"].get("ds_TrunkStat") == 1, "groups": files["trunk"].get("ds_TrunkList"),
+                  "members": [[i + 1 for i, c in enumerate(g) if c != "0"] for g in files["trunk"].get("ds_TrunkList", [])]},
         "port_based_vlan": {"enabled": files["pvlan"].get("ds_PVEnable") == 1, "vlans": files["pvlan"].get("ds_PVLANList")},
         "loop_detection": {"enabled": files["trunk"].get("ds_LBDEn") == 1},
     }
@@ -76,11 +83,11 @@ def build_state(files: dict[str, dict]) -> dict:
 class DLinkSession:
     """One logged-in session; a context manager so that logout always happens."""
 
-    def __init__(self, name: str, switches: dict[str, dict] | None = None, transport: httpx.BaseTransport | None = None):
+    def __init__(self, name: str, switches: dict[str, dict] | None = None, transport: httpx.BaseTransport | None = None, password: str | None = None):
         self.switches = switches or webui.load_switches()
         if name not in self.switches:
             raise KeyError(f"unknown switch {name!r}; known: {sorted(self.switches)}")
-        self.name, self.info = name, self.switches[name]
+        self.name, self.info, self.password = name, self.switches[name], password
         if self.info["vendor"] != "dlink":
             raise ValueError(f"{name!r} is not a D-Link switch")
         self.base = f"http://{self.info['host']}"
@@ -90,7 +97,7 @@ class DLinkSession:
     def __enter__(self) -> "DLinkSession":
         webui._LOCK.acquire()
         try:
-            digest = hashlib.md5(webui.load_password(self.name).encode()).hexdigest()
+            digest = hashlib.md5((self.password if self.password is not None else webui.load_password(self.name)).encode()).hexdigest()
             r = self.client.post(f"{self.base}/cgi/login.cgi", data={"pass": digest})
             cookies = dict(re.findall(r"document\.cookie='(\w+)=([^;']*);path=/'", r.text))
             if cookies.get("Gambit") in (None, "login"):
@@ -117,10 +124,10 @@ class DLinkSession:
 
 
     # ---- writes: only these five CGI endpoints can ever be posted -----------------------------------------------
-    def _post(self, cgi: str, fields: dict) -> None:
+    def _post(self, cgi: str, fields: dict, timeout: float | None = None) -> None:
         if cgi not in WRITE_CGIS:
             raise ValueError(f"refusing to post to {cgi!r}")
-        r = self.client.post(f"{self.base}/cgi/{cgi}", data=fields)
+        r = self.client.post(f"{self.base}/cgi/{cgi}", data=fields, **({"timeout": timeout} if timeout else {}))
         r.raise_for_status()
 
     @staticmethod
@@ -161,13 +168,103 @@ class DLinkSession:
         if mode not in MIRROR_MODES:
             raise ValueError(f"mode must be one of {MIRROR_MODES}")
         if mode == "Disable":
-            self._post("PortMirroring.cgi", {"cEn": "0"})
+            # Found on hardware (DGS-1100-08, 2026-11-08): posting only {"cEn": "0"} makes the switch hang (no reply, nothing applied).
+            # It answers in ~0.1 s and disables the mirror when the form also carries the current sniffer port, mode and source ports.
+            cur = self.read("mirror")["values"]
+            if cur.get("ds_MirrorEn", 0) == 0:
+                return
+            src = cur.get("ds_MirrSrc", "")
+            self._post("PortMirroring.cgi", {"cEn": "0", "sTagP": str(cur["ds_MirrTag"]), "sMode": str(cur["ds_MirrorEn"] - 1),
+                                             "rSrcP": [str(i) for i, c in enumerate(src) if c == "1"]})
             return
         self._check_ports(source_ports + [sniffer_port or 0], "mirror")
         if not source_ports or sniffer_port in source_ports:
             raise ValueError("mirroring needs at least one source port, and the sniffer port cannot be a source")
         self._post("PortMirroring.cgi", {"cEn": "1", "sTagP": str(sniffer_port), "sMode": str(MIRROR_MODES.index(mode) - 1),
                                          "rSrcP": [str(p - 1) for p in sorted(set(source_ports))]})
+
+    # ---- system name/location, saving, trunks (forms read from the switch's own pages: H_11_Sys_DHCP, H_05_Save, H_22_Trunking) ----------
+    def write_system(self, name: str, location: str, timeout: int) -> None:
+        for label, v in (("name", name), ("location", location)):
+            if not re.fullmatch(r"[A-Za-z0-9 _.-]{0,20}", v):
+                raise ValueError(f"system {label}: up to 20 letters, digits, space, '.', '-' or '_'")
+        if not TIMEOUT_MIN <= timeout <= TIMEOUT_MAX:
+            raise ValueError(f"login timeout must be {TIMEOUT_MIN}-{TIMEOUT_MAX} minutes")
+        self._post("set_sys.cgi", {"sys": name, "loc": location, "SysTimeout": str(timeout)})
+
+    def save_config(self) -> None:
+        """Copy the running configuration to the switch's flash (its 'Save Configuration' page); there is no read-back for this."""
+        self._post("save.cgi", {})
+
+    def write_trunk(self, group: int, ports: list[int], enable_first: bool) -> None:
+        if not 1 <= group <= TRUNK_GROUPS:
+            raise ValueError(f"trunk group must be 1-{TRUNK_GROUPS}")
+        quad = range(4 * group - 3, 4 * group + 1)
+        if not 2 <= len(ports) <= TRUNK_MAX_PORTS or any(p not in quad for p in ports) or len(set(ports)) != len(ports):
+            raise ValueError(f"trunk group {group}: 2-{TRUNK_MAX_PORTS} distinct ports from {list(quad)}")
+        if enable_first:
+            self._post("TrunkingStatus.cgi", {"enabled_flag": "1"}, timeout=SLOW_WRITE_TIMEOUT)
+        self._post("TrunkingSetting.cgi", {"Group": str(group), "GroupMember": "".join("1" if p in ports else "0" for p in range(1, PORTS + 1))},
+                   timeout=SLOW_WRITE_TIMEOUT)
+
+    def delete_trunk(self, group: int, disable_after: bool) -> None:
+        if not 1 <= group <= TRUNK_GROUPS:
+            raise ValueError(f"trunk group must be 1-{TRUNK_GROUPS}")
+        self._post("TrunkingDelMems.cgi", {"Group": str(group)}, timeout=SLOW_WRITE_TIMEOUT)
+        if disable_after:
+            self._post("TrunkingStatus.cgi", {"enabled_flag": "0"}, timeout=SLOW_WRITE_TIMEOUT)
+
+    # ---- downloads (read-only on the switch) and maintenance (gated by SWITCH_MCP_ENABLE_MAINTENANCE) ----------------------------------
+    def _download(self, cgi: str, fields: dict) -> bytes:
+        if cgi not in DOWNLOAD_CGIS:
+            raise ValueError(f"refusing to post to {cgi!r}")
+        r = self.client.post(f"{self.base}/cgi/{cgi}", data=fields, timeout=90.0)
+        r.raise_for_status()
+        if not r.content or r.content.lstrip()[:5].lower() == b"<html":
+            raise PermissionError("the switch did not return a file (session expired?)")
+        return r.content
+
+    def download_config(self) -> bytes:
+        """backup.cgi: the configuration file (about 3.7 KB). Treat it as a secret: it holds the admin password."""
+        return self._download("backup.cgi", {"pswType": "1"})   # a bare POST gets no answer; the radio is hidden on this firmware but the field is required
+
+    def download_firmware(self) -> bytes:
+        """FWBackup.cgi: the running firmware image (about 740 KB). Read-only."""
+        return self._download("FWBackup.cgi", {})
+
+    def _post_maint(self, cgi: str, fields: dict | None = None, files: dict | None = None, timeout: float | None = None) -> None:
+        if cgi not in MAINT_CGIS:
+            raise ValueError(f"refusing to post to {cgi!r}")
+        webui.require_maintenance(f"{cgi}")
+        kw = {"timeout": timeout} if timeout else {}
+        r = self.client.post(f"{self.base}/cgi/{cgi}", data=fields or {}, **({"files": files} if files else {}), **kw)
+        r.raise_for_status()
+
+    def change_password(self, old: str, new: str) -> None:
+        if not re.fullmatch(r"[A-Za-z0-9]{1,20}", new):
+            raise ValueError("new password: 1-20 letters or digits")
+        self._post_maint("changing_pw.cgi", {"old_pass": old, "new_pass": new, "renew_pass": new})
+
+    def write_ip(self, ip: str, netmask: str, gateway: str) -> None:
+        for a in (ip, netmask, gateway):
+            if len(a.split(".")) != 4 or not all(o.isdigit() and 0 <= int(o) <= 255 for o in a.split(".")):
+                raise ValueError(f"not an IPv4 address: {a!r}")
+        self._post_maint("set_ip.cgi", {"dhcp": "0", "ip": ip, "submask": netmask, "gateway": gateway, "dhcptm": ""})
+
+    def reboot(self) -> None:
+        try:
+            self._post_maint("reboot.cgi", {}, timeout=10.0)
+        except httpx.TransportError:
+            pass   # the switch goes down mid-answer
+
+    def factory_reset(self) -> None:
+        try:
+            self._post_maint("reset.cgi", {}, timeout=10.0)
+        except httpx.TransportError:
+            pass
+
+    def upload_config(self, data: bytes) -> None:
+        self._post_maint("restore.cgi", {}, files={"file": ("config.bin", data, "application/octet-stream")}, timeout=60.0)
 
     def __exit__(self, *exc) -> None:
         try:

@@ -7,6 +7,7 @@ disk BEFORE the write, so it survives a lost connection or a restarted server. E
 from __future__ import annotations
 
 import json
+import re
 import time
 import uuid
 from dataclasses import asdict, dataclass, field, fields
@@ -174,6 +175,49 @@ def plan_mirror(switch: str, mode: str, sniffer_port: int | None, source_port: i
     return _register(_new(switch, "mirror", params, before, summary, risks))
 
 
+def plan_system(switch: str, name: str | None, location: str | None, timeout: int | None) -> dict:
+    with webui.Session(switch) as s:
+        cur = s.state()["system"]
+    before = {"name": cur["name"], "location": cur["location"], "timeout": cur["login_timeout_minutes"]}
+    params = {"name": before["name"] if name is None else name, "location": before["location"] if location is None else location,
+              "timeout": before["timeout"] if timeout is None else timeout}
+    if params == before:
+        raise ValueError("nothing to change")
+    for label in ("name", "location"):
+        if not re.fullmatch(r"[A-Za-z0-9 _.-]{0,15}", params[label]):
+            raise ValueError(f"system {label}: up to 15 letters, digits, space, '.', '-' or '_'")
+    if not 3 <= params["timeout"] <= 30:
+        raise ValueError("login timeout must be 3-30 minutes")
+    return _register(_new(switch, "system", params, before, [f"system {k}: {before[k]!r} -> {params[k]!r}" for k in params if params[k] != before[k]],
+                          ["the IP settings on the same page are sent back unchanged."]))
+
+
+def plan_trunk(switch: str, group: int, ports: list[int], allow_protected: bool = False) -> dict:
+    """Choose a trunk group's members. The 7724 only offers fixed port sets per group (see get_state: trunk[].options); pass [] to disable the group."""
+    with webui.Session(switch) as s:
+        st = s.state()
+    g = next((g for g in st["trunk"] if g["group"] == group), None)
+    if g is None:
+        raise ValueError(f"trunk group must be 1-{len(st['trunk'])}")
+    ports = sorted(set(ports))
+    opt = next((o for o in g["options"] if o["ports"] == ports), None)
+    if opt is None:
+        offered = [o["ports"] for o in g["options"] if o["ports"]]
+        raise ValueError(f"group {group} offers only these port sets: {offered} (or [] to disable)")
+    if opt["value"] == g["value"]:
+        raise ValueError("nothing to change")
+    guard_protected(switch, set(ports) | set(g["ports"]), allow_protected)
+    # the page's own rule: members must be in the same port-based VLAN groups
+    for v in st["vlan"]:
+        inside = [p in v["members"] for p in ports]
+        if ports and any(inside) and not all(inside):
+            raise ValueError(f"trunk members must all be in, or all out of, VLAN group {v['group']}")
+    up = {p["port"] for p in st["ports"] if p["link"] != "Down"}
+    risks = [f"port(s) {sorted(up & set(ports))} are up; the device on the other end must be configured as a trunk too, or traffic may loop or drop."] if up & set(ports) else []
+    return _register(_new(switch, "trunk", {"group": group, "value": opt["value"], "ports": ports}, {"group": group, "value": g["value"], "ports": g["ports"]},
+                          [f"trunk group {group}: {g['ports'] or 'disabled'} -> {ports or 'disabled'}"], risks))
+
+
 # ---- apply ------------------------------------------------------------------------------------------------------------
 def _write(s: webui.Session, op: str, p: dict) -> None:
     if op == "vlan":
@@ -182,6 +226,10 @@ def _write(s: webui.Session, op: str, p: dict) -> None:
         s.write_port(p["port"], p["speed"], p["flow"], p["qos"])
     elif op == "mirror":
         s.write_mirror(p["mode"], p["sniffer_port"], p["source_port"])
+    elif op == "system":
+        s.write_system(p["name"], p["location"], p["timeout"])
+    elif op == "trunk":
+        s.write_trunk({p["group"]: p["value"]})
     else:
         raise ValueError(op)
 
@@ -193,6 +241,12 @@ def _current(op: str, st: dict, p: dict) -> dict:
     if op == "port":
         x = next(x for x in st["ports"] if x["port"] == p["port"])
         return {"port": x["port"], "speed": x["speed_set"], "flow": x["flow_set"] == "Enable", "qos": x["qos"]}
+    if op == "system":
+        c = st["system"]
+        return {"name": c["name"], "location": c["location"], "timeout": c["login_timeout_minutes"]}
+    if op == "trunk":
+        g = next(g for g in st["trunk"] if g["group"] == p["group"])
+        return {"group": g["group"], "value": g["value"], "ports": g["ports"]}
     m = st["mirror"]
     return {"mode": m["mode"], "sniffer_port": m["sniffer_port"], "source_port": m["source_port"]}
 
@@ -209,6 +263,16 @@ def apply_plan(plan_id: str, confirm: bool) -> dict:
         plan.status = "expired"
         _save(plan)
         raise ValueError("plan expired; make a new one")
+    if plan.op.startswith("maint_"):
+        from . import maintenance
+        try:
+            result = maintenance.apply(plan)
+        except PermissionError:
+            raise   # maintenance is switched off: the plan stays plannable
+        plan.status = "applied"
+        _save(plan)
+        audit("apply", id=plan.id, switch=plan.switch, op=plan.op, verified=result.get("verified"))
+        return result
     dlink = plan.op.startswith("dl_")
     expected = dlinkchanges.target(plan.op, plan.params) if dlink else plan.params
     snap = after = rollback = None
@@ -248,4 +312,5 @@ def apply_plan(plan_id: str, confirm: bool) -> dict:
     audit("apply", id=plan.id, switch=plan.switch, op=plan.op, verified=verified, rollback=rollback["id"])
     return {"applied": True, "verified": verified, "before": plan.before, "after": after, "snapshot": str(snap),
             "rollback_plan_id": rollback["id"],
+            **({"note": "the switch has no read-back for a save: 'verified' only means it still answered afterwards"} if plan.op == "dl_save" else {}),
             **({} if verified else {"warning": "the switch did not read back as requested; check it, and use the rollback plan if needed"})}

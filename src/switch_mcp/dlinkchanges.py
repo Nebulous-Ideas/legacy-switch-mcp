@@ -5,6 +5,8 @@ page would reject is rejected at plan time. Risks are computed against the live 
 """
 from __future__ import annotations
 
+import re
+
 from . import dlinkweb, webui
 from .safety import guard_protected
 
@@ -170,8 +172,111 @@ def plan_mirror(switch: str, mode: str, sniffer_port: int | None, source_ports: 
                         f"{params['mode']} (sniffer {params['sniffer_port']}, sources {params['source_ports']})"], "risks": risks}
 
 
+def plan_system(switch: str, name: str | None, location: str | None, timeout: int | None) -> dict:
+    st = _state(switch)
+    cur = st["system"]
+    before = {"name": cur["name"], "location": cur["location"], "timeout": cur["login_timeout_minutes"]}
+    params = {"name": before["name"] if name is None else name, "location": before["location"] if location is None else location,
+              "timeout": before["timeout"] if timeout is None else timeout}
+    if params == before:
+        raise ValueError("nothing to change")
+    for label in ("name", "location"):
+        if not re.fullmatch(r"[A-Za-z0-9 _.-]{0,20}", params[label]):
+            raise ValueError(f"system {label}: up to 20 letters, digits, space, '.', '-' or '_'")
+    if not dlinkweb.TIMEOUT_MIN <= params["timeout"] <= dlinkweb.TIMEOUT_MAX:
+        raise ValueError(f"login timeout must be {dlinkweb.TIMEOUT_MIN}-{dlinkweb.TIMEOUT_MAX} minutes")
+    return {"op": "dl_system", "params": params, "before": before,
+            "summary": [f"system {k}: {before[k]!r} -> {params[k]!r}" for k in params if params[k] != before[k]], "risks": []}
+
+
+def plan_save(switch: str) -> dict:
+    _state(switch)  # proves we can log in; there is nothing to compare for a save
+    return {"op": "dl_save", "params": {}, "before": {"saved": "unknown"},
+            "summary": ["copy the running configuration to flash (survives a power cut)"],
+            "risks": ["this saves EVERYTHING currently running, including any change you have not meant to keep; review get_state first."]}
+
+
+def _tvals(switch: str) -> dict:
+    with webui.open_session(switch) as s:
+        return s.read("trunk")["values"]
+
+
+def plan_trunk(switch: str, group: int, ports: list[int], allow_protected: bool = False) -> dict:
+    """Repeats the checks of the switch's Trunking page (same speed, same VLAN setup, no mirror/loop-detection/static-MAC conflicts)."""
+    st, v = _state(switch), _tvals(switch)
+    if not 1 <= group <= dlinkweb.TRUNK_GROUPS:
+        raise ValueError(f"trunk group must be 1-{dlinkweb.TRUNK_GROUPS}")
+    ports = sorted(set(ports))
+    quad = list(range(4 * group - 3, 4 * group + 1))
+    if not 2 <= len(ports) <= dlinkweb.TRUNK_MAX_PORTS or any(p not in quad for p in ports):
+        raise ValueError(f"trunk group {group} takes 2-{dlinkweb.TRUNK_MAX_PORTS} ports from {quad}")
+    idx = [p - 1 for p in ports]
+    other = {p for g, m in enumerate(st["trunk"]["members"], 1) if g != group for p in m}
+    if other & set(ports):
+        raise ValueError(f"port(s) {sorted(other & set(ports))} already belong to another trunk group")
+    ps = [v["ds_PortSetting"][i] for i in idx]
+    if any(x[1] in (2, 4) for x in ps):
+        raise ValueError("a port is set to half duplex; trunk members must be full duplex or Auto")
+    if len({x[1] for x in ps}) > 1 or len({x[2] for x in ps}) > 1:
+        raise ValueError("trunk members must have the same speed and flow-control setting")
+    if len({tuple(v["ds_BWList"][i]) for i in idx}) > 1:
+        raise ValueError("trunk members must have the same bandwidth limits")
+    if len({v["ds_defPrio"][i] for i in idx}) > 1:
+        raise ValueError("trunk members must have the same default 802.1p priority")
+    if v.get("ds_QVEnable") and len({v["ds_PVID"][i] for i in idx}) > 1:
+        raise ValueError("trunk members must have the same PVID")
+    for vl in v.get("ds_QVLANList", []):
+        if len({vl[2][i] for i in idx}) > 1:
+            raise ValueError(f"trunk members must have the same membership (untagged/tagged/none) in VLAN {vl[0]}")
+    if v.get("ds_MirrorEn"):
+        if v["ds_MirrTag"] in ports:
+            raise ValueError("the mirror's sniffer port cannot be a trunk member")
+        src = [v["ds_MirrSrc"][i] for i in idx]
+        if "1" in src and "0" in src:
+            raise ValueError("either all or none of the trunk members must be mirror source ports")
+    if v.get("ds_LBDEn") == 1 and any(v["ds_LBDList"][i][0] == "1" for i in idx):
+        raise ValueError("loop detection is on for a trunk member; turn it off for that port first")
+    if any(int(m[0]) - 1 in idx for m in v.get("ds_SMacList", [])):
+        raise ValueError("a trunk member has a static MAC entry")
+    if v.get("ds_TrafficEn") == 1 and any(v["ds_Traffic"][i] == "1" for i in idx):
+        raise ValueError("a trunk member is used by traffic segmentation")
+    before = {"enabled": st["trunk"]["enabled"], "ports": st["trunk"]["members"][group - 1]}
+    params = {"group": group, "ports": ports, "enable_first": not st["trunk"]["enabled"]}
+    if before["ports"] == ports and before["enabled"]:
+        raise ValueError("nothing to change")
+    guard_protected(switch, set(ports) | set(before["ports"]), allow_protected)
+    risks = []
+    up = [p for p in ports if st["ports"][p - 1]["link"] != "Down"]
+    if up:
+        risks.append(f"port(s) {up} are up; a trunk needs the same trunk (or none) configured on the device at the other end, or traffic may loop or drop.")
+    if params["enable_first"]:
+        risks.append("link aggregation is switched on for the whole switch first.")
+    return {"op": "dl_trunk", "params": params, "before": before,
+            "summary": [f"trunk group {group}: ports {before['ports']} -> {ports}" + ("; trunking switched ON" if params["enable_first"] else "")], "risks": risks}
+
+
+def plan_trunk_delete(switch: str, group: int, allow_protected: bool = False) -> dict:
+    st = _state(switch)
+    if not 1 <= group <= dlinkweb.TRUNK_GROUPS:
+        raise ValueError(f"trunk group must be 1-{dlinkweb.TRUNK_GROUPS}")
+    members = st["trunk"]["members"][group - 1]
+    if not members:
+        raise ValueError(f"trunk group {group} has no members")
+    guard_protected(switch, set(members), allow_protected)
+    params = {"group": group, "disable_after": False, "enabled_after": st["trunk"]["enabled"]}
+    return {"op": "dl_trunk_delete", "params": params, "before": {"enabled": st["trunk"]["enabled"], "ports": members},
+            "summary": [f"delete trunk group {group} (ports {members})"], "risks": ["the ports become independent links again."]}
+
+
 # ---- apply helpers used by changes.apply_plan -------------------------------------------------------------------------
 def current(op: str, st: dict, params: dict):
+    if op == "dl_system":
+        c = st["system"]
+        return {"name": c["name"], "location": c["location"], "timeout": c["login_timeout_minutes"]}
+    if op == "dl_save":
+        return {"saved": "unknown"}
+    if op in ("dl_trunk", "dl_trunk_delete"):
+        return {"enabled": st["trunk"]["enabled"], "ports": st["trunk"]["members"][params["group"] - 1]}
     if op in ("dl_vlan", "dl_vlan_delete"):
         return _vlan(st, params["vid"])
     if op == "dl_pvid":
@@ -185,6 +290,12 @@ def current(op: str, st: dict, params: dict):
 
 def target(op: str, params: dict):
     """What current() should return once the plan has been applied."""
+    if op == "dl_trunk":
+        return {"enabled": True, "ports": params["ports"]}
+    if op == "dl_trunk_delete":
+        return {"enabled": params["enabled_after"], "ports": []}
+    if op == "dl_save":
+        return {"saved": "unknown"}
     return None if op == "dl_vlan_delete" else params
 
 
@@ -199,6 +310,14 @@ def write(s: dlinkweb.DLinkSession, op: str, p: dict) -> None:
         s.write_port(p["port"], p["speed"], p["flow"])
     elif op == "dl_mirror":
         s.write_mirror(p["mode"], p["sniffer_port"], p["source_ports"])
+    elif op == "dl_system":
+        s.write_system(p["name"], p["location"], p["timeout"])
+    elif op == "dl_save":
+        s.save_config()
+    elif op == "dl_trunk":
+        s.write_trunk(p["group"], p["ports"], p["enable_first"])
+    elif op == "dl_trunk_delete":
+        s.delete_trunk(p["group"], p["disable_after"])
     else:
         raise ValueError(op)
 
@@ -209,4 +328,10 @@ def inverse(op: str, params: dict, before):
         return ("dl_vlan_delete", {"vid": params["vid"]}) if before is None else ("dl_vlan", before)
     if op == "dl_vlan_delete":
         return "dl_vlan", before
+    if op == "dl_trunk":
+        if not before["ports"]:
+            return "dl_trunk_delete", {"group": params["group"], "disable_after": params["enable_first"], "enabled_after": not params["enable_first"]}
+        return "dl_trunk", {"group": params["group"], "ports": before["ports"], "enable_first": False}
+    if op == "dl_trunk_delete":
+        return "dl_trunk", {"group": params["group"], "ports": before["ports"], "enable_first": False}
     return op, before

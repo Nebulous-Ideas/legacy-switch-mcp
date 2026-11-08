@@ -87,6 +87,17 @@ def test_port_speed_and_flow(dl):
     assert changes.apply_plan(q["id"], True)["verified"] and dl.ports[5][1] == 0
 
 
+def test_mirror_disable_sends_the_full_form_like_the_real_switch_needs(dl):
+    """On the real DGS-1100-08 a bare cEn=0 gets no answer at all; the fake raises ReadTimeout for it, so this fails if the full form is ever dropped."""
+    on = plan(dlinkchanges.plan_mirror("dlink-test", "Rx", 8, [7]))
+    assert changes.apply_plan(on["id"], True)["verified"]
+    dl.posts.clear()
+    off = plan(dlinkchanges.plan_mirror("dlink-test", "Disable", None, []))
+    assert changes.apply_plan(off["id"], True)["verified"] and dl.mirror["en"] == 0
+    name, form = dl.posts[-1]
+    assert name.endswith("/PortMirroring.cgi") and form["cEn"] == "0" and form["sTagP"] == "8" and form["sMode"] == "0"
+
+
 def test_mirror_enable_and_disable(dl):
     p = plan(dlinkchanges.plan_mirror("dlink-test", "Both", 2, [3, 4]))
     assert any("sniffer port 02 is up" in r for r in p["risks"])
@@ -114,7 +125,8 @@ def test_only_five_cgis_can_be_posted_and_inputs_are_validated(dl):
         with pytest.raises(ValueError):
             s.delete_vlan(1)
     assert dl.posts == []
-    assert dlinkweb.WRITE_CGIS == {"q_vlan_add_edit.cgi", "q_vlan_del.cgi", "q_vlan_set_pvid.cgi", "set_port.cgi", "PortMirroring.cgi"}
+    assert dlinkweb.WRITE_CGIS == {"q_vlan_add_edit.cgi", "q_vlan_del.cgi", "q_vlan_set_pvid.cgi", "set_port.cgi", "PortMirroring.cgi",
+                                   "set_sys.cgi", "save.cgi", "TrunkingStatus.cgi", "TrunkingSetting.cgi", "TrunkingDelMems.cgi"}
 
 
 def test_unverified_write_is_reported(dl, monkeypatch):
@@ -122,3 +134,70 @@ def test_unverified_write_is_reported(dl, monkeypatch):
     monkeypatch.setattr(dlinkweb.DLinkSession, "write_port", lambda self, *a: None)  # the switch silently ignores the write
     r = changes.apply_plan(p["id"], True)
     assert r["verified"] is False and "warning" in r
+
+
+# ---- system, save, trunks ---------------------------------------------------------------------------------------------------
+def test_system_name_location_and_rollback(dl):
+    p = plan(dlinkchanges.plan_system("dlink-test", "lab-sw", "rack 1", None))
+    r = changes.apply_plan(p["id"], True)
+    assert r["verified"] and dl.sysinfo == ["lab-sw", "rack 1", 5]
+    undo = changes.apply_plan(r["rollback_plan_id"], True)
+    assert undo["verified"] and dl.sysinfo == ["demo-dlk", "", 5]
+
+
+@pytest.mark.parametrize("name,loc,timeout", [("bad;name", None, None), (None, "x" * 21, None), (None, None, 2), (None, None, 31)])
+def test_system_rejects_what_the_web_page_would(dl, name, loc, timeout):
+    with pytest.raises(ValueError):
+        dlinkchanges.plan_system("dlink-test", name, loc, timeout)
+    assert dl.posts == []
+
+
+def test_system_nothing_to_change(dl):
+    with pytest.raises(ValueError, match="nothing"):
+        dlinkchanges.plan_system("dlink-test", None, None, None)
+
+
+def test_save_posts_save_cgi_and_says_it_cannot_verify(dl):
+    p = plan(dlinkchanges.plan_save("dlink-test"))
+    assert any("running" in r for r in p["risks"])
+    r = changes.apply_plan(p["id"], True)
+    assert r["applied"] and dl.saves == 1
+
+
+def test_trunk_create_enables_trunking_first_and_rolls_back(dl):
+    p = plan(dlinkchanges.plan_trunk("dlink-test", 2, [6, 7], allow_protected=True))
+    assert p["params"]["enable_first"] and any("whole switch" in r for r in p["risks"])
+    r = changes.apply_plan(p["id"], True)
+    assert r["verified"] and dl.trunk_stat == 1 and dl.trunk_list == ["00000000", "00000110"]
+    assert [n.rsplit("/", 1)[-1] for n, _ in dl.posts[-2:]] == ["TrunkingStatus.cgi", "TrunkingSetting.cgi"]
+    undo = changes.apply_plan(r["rollback_plan_id"], True)
+    assert undo["verified"] and dl.trunk_list == ["00000000", "00000000"] and dl.trunk_stat == 0
+
+
+def test_trunk_delete(dl):
+    changes.apply_plan(plan(dlinkchanges.plan_trunk("dlink-test", 2, [6, 7], allow_protected=True))["id"], True)
+    r = changes.apply_plan(plan(dlinkchanges.plan_trunk_delete("dlink-test", 2, allow_protected=True))["id"], True)
+    assert r["verified"] and dl.trunk_list == ["00000000", "00000000"] and dl.trunk_stat == 1
+
+
+@pytest.mark.parametrize("group,ports,match", [(3, [1, 2], "group"), (1, [1], "2-4 ports"), (1, [4, 5], "2-4 ports"), (2, [5, 6, 7, 8, 1], "2-4 ports")])
+def test_trunk_rejects_bad_groups_and_sizes(dl, group, ports, match):
+    with pytest.raises(ValueError, match=match):
+        dlinkchanges.plan_trunk("dlink-test", group, ports, allow_protected=True)
+
+
+def test_trunk_members_must_match(dl):
+    dl.ports[5] = [0, 5, 0]          # port 6 forced to 100M Full while port 7 stays Auto
+    with pytest.raises(ValueError, match="same speed"):
+        dlinkchanges.plan_trunk("dlink-test", 2, [6, 7], allow_protected=True)
+    dl.ports[5] = [0, 1, 0]
+    dl.pvids[6] = 10
+    dl.vlans.append([10, "x", "000000U0"])
+    with pytest.raises(ValueError, match="PVID"):
+        dlinkchanges.plan_trunk("dlink-test", 2, [6, 7], allow_protected=True)
+
+
+def test_trunk_refuses_the_mirror_sniffer_port(dl):
+    dl.mirror = {"en": 3, "tag": 6, "src": "10000000"}
+    with pytest.raises(ValueError, match="sniffer"):
+        dlinkchanges.plan_trunk("dlink-test", 2, [6, 7], allow_protected=True)

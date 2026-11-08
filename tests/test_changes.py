@@ -107,9 +107,9 @@ def test_mirror_plan_and_apply(sw):
     assert changes.apply_plan(off["id"], True)["verified"] and sw.mirror["mode"] == "Disable"
 
 
-def test_only_three_forms_can_be_posted(sw):
+def test_only_five_forms_can_be_posted(sw):
     with webui.Session("usr-test") as s:
-        for bad in ("cgi_pass", "cgi_reset", "cgi_sys", "cgi_backup", "cgi_trunk", "cgi_setvlan=abc"):
+        for bad in ("cgi_pass", "cgi_reset", "cgi_backup", "cgi_upgrade", "cgi_setvlan=abc", "cgi_sys=1", "cgi_trunk2"):
             with pytest.raises(ValueError, match="refusing"):
                 s._post(bad, {})
     assert sw.posts == []
@@ -131,3 +131,47 @@ def test_clearing_a_description_sends_a_space(sw):
     result = changes.apply_plan(plan["id"], True)
     assert result["verified"] and sw.groups[10]["desc"] == ""
     assert sw.posts[-1][1]["desc"] == " "
+
+
+def test_usr_trunk_plan_apply_and_rollback(sw):
+    p = changes.plan_trunk("usr-test", 3, [17, 18])
+    assert any("up" in r for r in p["risks"]) is False       # ports 17/18 are down in the fake
+    r = changes.apply_plan(p["id"], True)
+    assert r["verified"] and sw.trunk == {"t0": "00", "t1": "00", "t2": "09"}
+    undo = changes.apply_plan(r["rollback_plan_id"], True)
+    assert undo["verified"] and sw.trunk["t2"] == "00"
+
+
+def test_usr_trunk_offers_only_fixed_port_sets(sw):
+    with pytest.raises(ValueError, match="offers only"):
+        changes.plan_trunk("usr-test", 3, [17, 19])
+    with pytest.raises(ValueError, match="nothing"):
+        changes.plan_trunk("usr-test", 1, [])
+    with pytest.raises(ValueError, match="group must be"):
+        changes.plan_trunk("usr-test", 4, [1, 2])
+    assert sw.posts == []
+
+
+def test_usr_system_changes_name_and_keeps_the_ip_settings(sw):
+    p = changes.plan_system("usr-test", "lab-core", "rack 2", 10)
+    r = changes.apply_plan(p["id"], True)
+    assert r["verified"] and sw.sys["sys"] == "lab-core" and sw.sys["loc"] == "rack 2" and sw.sys["login"] == "10"
+    assert sw.sys["ip"] == ["192", "0", "2", "3"] and sw.sys["mk"] == ["255", "255", "255", "0"] and sw.sys["gw"] == ["192", "0", "2", "1"]
+    undo = changes.apply_plan(r["rollback_plan_id"], True)
+    assert undo["verified"] and sw.sys["sys"] == "demo-usr" and sw.sys["login"] == "5"
+
+
+@pytest.mark.parametrize("name,loc,timeout", [("bad;name", None, None), (None, "x" * 16, None), (None, None, 2), (None, None, 31)])
+def test_usr_system_validation(sw, name, loc, timeout):
+    with pytest.raises(ValueError):
+        changes.plan_system("usr-test", name, loc, timeout)
+    assert sw.posts == []
+
+
+def test_usr_trunk_write_uses_a_long_timeout_because_the_real_switch_answers_in_11_seconds(sw, monkeypatch):
+    seen = {}
+    with webui.Session("usr-test") as s:
+        real = s.client.post
+        monkeypatch.setattr(s.client, "post", lambda *a, **k: seen.update(k) or real(*a, **{x: y for x, y in k.items() if x != "timeout"}))
+        s.write_trunk({3: "09"})
+    assert seen["timeout"] == webui.SLOW_WRITE_TIMEOUT >= 30
