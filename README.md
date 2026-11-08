@@ -33,14 +33,26 @@ Passwords are never tool arguments and are never returned. Provide each as `SWIT
 EasySmart manuals, which also give 10.90.90.90 as the default D-Link address and 192.168.0.1 for the USRobotics). Change it after a reset.
 This repository contains no other credentials; tests use a throwaway `pw`.
 
-Register with Claude Code only for switch work (every MCP server adds tool schemas to every request):
+Register with Claude Code only for switch work (every MCP server adds its tool descriptions to every request of the session):
 ```bash
 claude mcp add switch -- uv run --project /path/to/switch-mcp switch-mcp
 ```
 
+### Keeping the session cost small
+Only the tools that can be used are registered. Measured with all 33 tools registered the schema text was about 4,350 tokens; now:
+| Setup | Tools | Tokens per request (approx.) |
+|---|---|---|
+| default: read + files + a set for each vendor in `switches.json`, maintenance off | 28 (both vendors) | 2,450 |
+| default + `SWITCH_MCP_ENABLE_MAINTENANCE=1` (adds the 5 maintenance plan tools) | 33 | 2,850 |
+| `SWITCH_MCP_TOOLSETS=read,files,dlink` (D-Link work only) | 23 | 1,800 |
+| `SWITCH_MCP_TOOLSETS=read` (look only, no plan or apply tools) | 10 | 600 |
+`SWITCH_MCP_TOOLSETS` takes a comma list of `read`, `files`, `usr`, `dlink`, `maintenance`, or `all`; `apply_plan` is registered whenever any plan set is. A typo is an error, not a silent fallback.
+Maintenance plan tools are not registered at all unless the maintenance switch is on (or `maintenance` is named in `SWITCH_MCP_TOOLSETS`); a registered one still refuses to apply without the switch.
+For day-to-day looking: `claude mcp add switch --env SWITCH_MCP_TOOLSETS=read -- uv run ...`; for a change session leave it unset; for maintenance add `--env SWITCH_MCP_ENABLE_MAINTENANCE=1`.
+
 ## Testing
 ```bash
-uv sync --extra dev && uv run pytest            # 105 tests against the fake switches; no hardware needed
+uv sync --extra dev && uv run pytest            # 112 tests against the fake switches; no hardware needed
 uv run python scripts/e2e_check.py <dlink-switch> <trunk-group> <port> <port>   # real MCP stdio check against a D-Link, on IDLE ports only
 ```
 `e2e_check.py` starts the server as a client would, round-trips a system-location change and a trunk on the two idle ports you name (each rolled back), downloads a config, and

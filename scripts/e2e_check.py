@@ -19,11 +19,12 @@ if len(sys.argv) != 5:
 SW, GROUP, P1, P2 = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4])
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXPECTED = {"get_state", "apply_plan", "backup_config", "backup_firmware", "list_files", "dlink_plan_system", "dlink_plan_save", "dlink_plan_trunk",
-            "dlink_plan_trunk_delete", "plan_password", "plan_ip", "plan_reboot", "plan_factory_reset", "plan_restore_config", "plan_system", "plan_trunk"}
+            "dlink_plan_trunk_delete", "plan_password", "plan_ip", "plan_reboot", "plan_factory_reset", "plan_restore_config"}
 
 
 async def main() -> int:
     env = {k: v for k, v in os.environ.items() if k != "SWITCH_MCP_ENABLE_MAINTENANCE"}   # the gate must be closed for this check
+    env["SWITCH_MCP_TOOLSETS"] = "read,files,dlink,maintenance"     # register the maintenance plan tools anyway, so the refusal can be tested
     params = StdioServerParameters(command="uv", args=["run", "--project", ROOT, "switch-mcp"], env=env)
     failures = []
     async with stdio_client(params) as (r, w):
