@@ -20,6 +20,8 @@ This is a volunteer project: expect an acknowledgement within a few days, not a 
 - Dependabot proposes updates weekly. Major versions of the `mcp` SDK are migrated deliberately, not by a bot.
 - Releases are published to PyPI by GitHub Actions through trusted publishing (no stored token) and carry provenance attestations;
   each GitHub release has a CycloneDX SBOM attached (`sbom.cdx.json`).
+  Each release also carries the built files with keyless Sigstore signatures (`*.sigstore.json`); verify with
+  `sigstore verify github --cert-identity-repo Nebulous-Ideas/legacy-switch-mcp <file>` (from the release assets). Signing starts with the first release after this was added.
 - GitHub Actions are pinned to commit SHAs.
 
 ## Supported versions
