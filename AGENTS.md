@@ -6,7 +6,7 @@ Layout: `src/legacy_switch_mcp/` (server, per-vendor web sessions, change planne
 ## Commands
 ```bash
 uv sync --extra dev
-uv run pytest                      # 112 tests, ~1 s, fake switches only
+uv run pytest                      # 118 tests, ~1 s, fake switches only
 ```
 CI runs the same on Python 3.11, 3.12 and 3.13: do not use newer-only features.
 

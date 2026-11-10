@@ -104,7 +104,7 @@ class _Page(HTMLParser):
         elif tag == "title":
             self._title = []
         elif tag == "select":
-            self._select = {"name": a.get("name"), "type": "select", "options": []}
+            self._select = {"name": a.get("name") or "", "type": "select", "options": []}
             self.controls.append(self._select)
         elif tag == "option" and self._select is not None:
             self._option = {"value": a.get("value"), "label": "", "selected": "selected" in a}
@@ -113,7 +113,7 @@ class _Page(HTMLParser):
             kind = (a.get("type") or "text").lower()
             if kind in ("submit", "button"):
                 return
-            c = {"name": a.get("name"), "type": kind, "value": "<hidden>" if kind == "password" else a.get("value", "")}
+            c = {"name": a.get("name") or "", "type": kind, "value": "<hidden>" if kind == "password" else a.get("value", "")}
             if kind in ("checkbox", "radio"):
                 c["checked"] = "checked" in a
             self.controls.append(c)
