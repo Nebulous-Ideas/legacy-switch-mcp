@@ -77,7 +77,7 @@ For day-to-day looking: `claude mcp add switch --env SWITCH_MCP_TOOLSETS=read --
 
 ## Testing
 ```bash
-uv sync --extra dev && uv run pytest            # 112 tests against the fake switches; no hardware needed
+uv sync --extra dev && uv run pytest            # 118 tests against the fake switches; no hardware needed
 uv run python scripts/e2e_check.py <dlink-switch> <trunk-group> <port> <port>   # real MCP stdio check against a D-Link, on IDLE ports only
 ```
 `e2e_check.py` starts the server as a client would, round-trips a system-location change and a trunk on the two idle ports you name (each rolled back), downloads a config, and

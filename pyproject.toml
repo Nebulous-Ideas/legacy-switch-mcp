@@ -15,7 +15,10 @@ Issues = "https://github.com/Nebulous-Ideas/legacy-switch-mcp/issues"
 Releases = "https://github.com/Nebulous-Ideas/legacy-switch-mcp/releases"
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+dev = [
+    "hypothesis>=6",
+    "pytest>=8",
+]
 
 [project.scripts]
 legacy-switch-mcp = "legacy_switch_mcp.server:main"
