@@ -1,5 +1,10 @@
 # legacy-switch-mcp
 
+[![CI](https://github.com/Nebulous-Ideas/legacy-switch-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/Nebulous-Ideas/legacy-switch-mcp/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Python 3.11+](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue.svg)
+![MCP server](https://img.shields.io/badge/MCP-server-8A2BE2.svg)
+
 > **Use at your own risk.** This tool can change VLANs, reboot switches and factory-reset them, and a bad change can cut you off from the switch.
 > It has been proven on hardware on exactly two models (USRobotics 7724, D-Link DGS-1100-08) and is fake-switch tested only elsewhere. Read the plan before applying it,
 > list your uplinks in `protected_ports`, and keep the maintenance switch off unless you need it. Provided as is, without warranty (see `LICENSE`).
