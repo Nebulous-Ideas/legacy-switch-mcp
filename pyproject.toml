@@ -1,12 +1,18 @@
 [project]
 name = "legacy-switch-mcp"
-version = "0.1.0"
+version = "0.1.1"
 description = "MCP server for old smart switches (D-Link DGS-1100, USRobotics 7724): plan-then-apply VLAN, port and trunk changes with read-back verification and rollback"
 license = "MIT"
 license-files = ["LICENSE"]
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = ["mcp>=1.2,<2", "httpx>=0.27"]
+
+[project.urls]
+Homepage = "https://github.com/Nebulous-Ideas/legacy-switch-mcp"
+Repository = "https://github.com/Nebulous-Ideas/legacy-switch-mcp"
+Issues = "https://github.com/Nebulous-Ideas/legacy-switch-mcp/issues"
+Releases = "https://github.com/Nebulous-Ideas/legacy-switch-mcp/releases"
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
@@ -18,6 +24,9 @@ switch-mcp = "legacy_switch_mcp.server:main"   # old name, kept so existing MCP 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.sdist]
+exclude = ["docs/assets"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/legacy_switch_mcp"]
