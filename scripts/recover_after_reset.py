@@ -3,7 +3,7 @@ file, and wait for the switch to come back at its normal address with its stored
     ip addr add 10.90.90.99/32 dev <bridge on the switch's subnet> ; ip route add 10.90.90.90/32 dev <bridge>      (remove both afterwards)
 
     uv run python scripts/recover_after_reset.py <switch> <file-id> [--host 10.90.90.90] [--password admin]          (D-Link: uploads the saved config file)
-    uv run python scripts/recover_after_reset.py usr-3com <state.json> --state [--host 192.168.0.1] [--password admin]   (USRobotics: re-applies a saved state)
+    uv run python scripts/recover_after_reset.py usr-switch <state.json> --state [--host 192.168.0.1] [--password admin]   (USRobotics: re-applies a saved state)
 Defaults: D-Link 10.90.90.90, USRobotics 192.168.0.1, password admin. `scripts/maint.py files <switch>` lists the saved file ids; saved states are in
 ~/.local/state/switch-mcp/backups/. Why two ways: on the USRobotics 7724, uploading its own config.bin after a reset restored NONE of the VLAN groups, flow control,
 name/location, address or password (tested 2026-11-08), while the D-Link's file restored everything including the password. After either, the switch's password is the one
@@ -14,7 +14,7 @@ import os
 import sys
 
 os.environ["SWITCH_MCP_ENABLE_MAINTENANCE"] = "1"
-from switch_mcp import maintenance, webui  # noqa: E402
+from legacy_switch_mcp import maintenance, webui  # noqa: E402
 
 args = [a for a in sys.argv[1:] if not a.startswith("--")]
 opts = dict(zip(sys.argv[1:], sys.argv[2:]))

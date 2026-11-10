@@ -1,4 +1,4 @@
-"""MCP server for the homelab's two Cameo-built smart switches: reads, plus plan/apply writes on both.
+"""MCP server for Cameo-built smart switches (USRobotics 7724, D-Link DGS-1100): reads, plus plan/apply writes on both.
 
 Every registered tool adds its description to every request of the session, so only the tools that can be used are registered (see TOOLSETS):
   read         always: discovery, reads, state backups (10 tools)

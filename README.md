@@ -1,4 +1,8 @@
-# switch-mcp
+# legacy-switch-mcp
+
+> **Use at your own risk.** This tool can change VLANs, reboot switches and factory-reset them, and a bad change can cut you off from the switch.
+> It has been proven on hardware on exactly two models (USRobotics 7724, D-Link DGS-1100-08) and is fake-switch tested only elsewhere. Read the plan before applying it,
+> list your uplinks in `protected_ports`, and keep the maintenance switch off unless you need it. Provided as is, without warranty (see `LICENSE`).
 
 An MCP server for two old "smart" switch families that no other MCP covers: the **USRobotics 7724** (24-port gigabit, port-based VLANs) and the
 **D-Link DGS-1100** EasySmart series (802.1Q). Both are Cameo-built and share a UDP discovery protocol (see `docs/PROTOCOL.md`).
@@ -35,7 +39,7 @@ This repository contains no other credentials; tests use a throwaway `pw`.
 
 Register with Claude Code only for switch work (every MCP server adds its tool descriptions to every request of the session):
 ```bash
-claude mcp add switch -- uv run --project /path/to/switch-mcp switch-mcp
+claude mcp add switch -- uv run --project /path/to/legacy-switch-mcp legacy-switch-mcp
 ```
 
 ### Keeping the session cost small
@@ -99,15 +103,15 @@ Hardware-only checks (outages, factory reset, password) are in `scripts/maint.py
 | Config download (USRobotics `GET config.bin`, D-Link `backup.cgi` with `pswType`) | proven on hardware 2026-11-08, read-only. The D-Link file contains the admin password in clear text: it is stored 0600 and never returned |
 | Firmware download (D-Link `FWBackup.cgi`, ~740 KB) | proven on hardware 2026-11-08, read-only. The USRobotics web interface has no firmware page |
 | USRobotics system name/location/timeout | proven on hardware 2026-11-08 (location changed and restored; the IP settings were re-sent unchanged and did not change) |
-| Password change (both) | proven on hardware 2026-11-08 (run by the user with `scripts/rotate_password.py`, verified: the old password is refused, the stored new one works) |
-| IP change (both) | proven on hardware 2026-11-08: D-Link 198.51.100.3 -> .4 -> .3 and USRobotics 192.0.2.3 -> .9 -> .3 (documentation addresses; the real ones are in the owner's switches.json), each verified by logging in at the new address; `switches.json` updated, old address stopped answering |
+| Password change (both) | proven on hardware 2026-11-08 (run by the operator with `scripts/rotate_password.py`, verified: the old password is refused, the stored new one works) |
+| IP change (both) | proven on hardware 2026-11-08: D-Link 198.51.100.3 -> .4 -> .3 and USRobotics 192.0.2.3 -> .9 -> .3 (shown here as documentation addresses), each verified by logging in at the new address; `switches.json` updated, old address stopped answering |
 | Reboot (D-Link; the USRobotics has no reboot page) | proven on hardware: back in about 7 s, ~2 s of ping loss behind it, uptime reset, saved password survived (save the configuration first: `dlink_plan_save`) |
 | Factory reset + config restore, **D-Link** | proven on hardware: reset -> `10.90.90.90`/`admin` -> upload the saved config file -> back at its own address with its rotated password and a state identical to the pre-test backup (~4 s of cluster-link ping loss) |
 | Factory reset, **USRobotics** | proven on hardware, but the recovery is different: after the reset, uploading the switch's own `config.bin` (it reboots and answers a timeout) restored **none** of the VLAN groups (only group 1 remained), flow control (back to Enable), name/location, address (192.168.0.1) or password (`admin`). Recovery means re-applying a saved state (`backup_state`) over the web pages: `maintenance.reapply_usr_state`, used by `scripts/recover_after_reset.py usr-3com <state.json> --state`. The same steps were done by hand on 2026-11-08 and the switch ended identical to its backup; the packaged function itself is fake-switch tested only |
 | Config restore, USRobotics | the upload is accepted and the switch reboots (~30 s), but see above: do not rely on it to restore settings after a reset |
 
 ### Operational notes from the outage tests
-- In the test setup the D-Link carried only the cluster's second link and the USRobotics the main LAN plus the first link: a D-Link reboot/restore/reset cost a few seconds of ping loss on that link, a USRobotics reset/restore takes the whole LAN down for about a minute. Do one switch at a time.
+- In the test setup the D-Link carried only a redundant second link and the USRobotics carried the main LAN plus the first link: a D-Link reboot/restore/reset cost a few seconds of ping loss on that link, a USRobotics reset/restore takes the whole LAN down for about a minute. Do one switch at a time.
 - After a USRobotics factory reset its password is `admin` again and the stored entry must say so before `plan_password` can rotate it (the recovery sets it; rotate again afterwards).
 - Reaching a reset switch at its factory address needs a temporary host route on the machine running the tools (`ip addr add <x>/32` + `ip route add <default>/32 dev <bridge>`), not a /8 or /24 alias that would capture other traffic.
 
@@ -128,3 +132,6 @@ See `docs/ADDING-SWITCHES.md` for how to add another switch, another model or fi
 The gated-write pattern here (dry run, risk checks, session-eviction caveat) follows the same approach; ideas flow both ways.
 
 See `docs/PROTOCOL.md` for the wire formats and the page/CGI map and `docs/IDEAS.md` for what was borrowed from the projects above and a sketch of a multi-vendor umbrella (an idea only).
+
+---
+A Nebulous Ideas project, built by the Nebulous Collective: the people and agents who work on it.

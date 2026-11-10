@@ -1,6 +1,6 @@
 import pytest
 
-from switch_mcp import server
+from legacy_switch_mcp import server
 
 
 def test_bad_page_is_refused_before_any_login(monkeypatch):

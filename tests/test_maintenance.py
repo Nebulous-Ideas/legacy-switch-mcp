@@ -8,7 +8,7 @@ import pytest
 from fakedlink import FakeDLink
 from fakeswitch import FakeSwitch
 
-from switch_mcp import changes, dlinkweb, maintenance, safety, webui
+from legacy_switch_mcp import changes, dlinkweb, maintenance, safety, webui
 
 
 @pytest.fixture

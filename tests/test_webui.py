@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from switch_mcp import webui
+from legacy_switch_mcp import webui
 
 from pathlib import Path
 

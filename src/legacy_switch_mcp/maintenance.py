@@ -164,7 +164,7 @@ def plan_reboot(switch: str, allow_protected: bool = False) -> dict:
 def plan_factory_reset(switch: str, allow_protected: bool = False) -> dict:
     vendor = _vendor(switch)
     risks = _all_ports_guard(switch, allow_protected, "a factory reset")
-    state = __import__("switch_mcp.reports", fromlist=["backup_state"]).backup_state(switch)
+    state = __import__("legacy_switch_mcp.reports", fromlist=["backup_state"]).backup_state(switch)
     cfg = backup_config(switch)
     return _new_plan(switch, "maint_reset", {}, {"state_backup": state["path"], "config_backup": cfg["id"]},
                      [f"factory reset: every setting, the address and the password return to defaults (address {DEFAULTS[vendor]}, password admin)",

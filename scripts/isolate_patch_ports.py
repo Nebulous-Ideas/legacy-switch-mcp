@@ -9,7 +9,7 @@ through the same plan/verify/snapshot code as the MCP tools and stops at the fir
 import argparse
 import sys
 
-from switch_mcp import changes, webui
+from legacy_switch_mcp import changes, webui
 
 
 def main() -> int:

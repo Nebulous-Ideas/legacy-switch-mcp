@@ -1,7 +1,7 @@
 """Rotate a switch's web password from the command line (same code path as the plan_password tool, without needing the MCP server restarted).
 
     uv run python scripts/rotate_password.py dlink-pve
-    uv run python scripts/rotate_password.py usr-3com
+    uv run python scripts/rotate_password.py usr-switch
 
 Asks you to type the switch name first. The new password is generated here, verified by logging in with it, then stored in passwords.json (the old one goes to
 passwords.prev.json). It is never printed. If verification fails, the new password stays in passwords.pending.json in the config directory.
@@ -13,7 +13,7 @@ import stat
 import sys
 
 os.environ["SWITCH_MCP_ENABLE_MAINTENANCE"] = "1"
-from switch_mcp import changes, maintenance, webui  # noqa: E402
+from legacy_switch_mcp import changes, maintenance, webui  # noqa: E402
 
 if len(sys.argv) != 2:
     sys.exit(__doc__)

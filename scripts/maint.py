@@ -12,7 +12,7 @@ import os
 import sys
 
 os.environ["SWITCH_MCP_ENABLE_MAINTENANCE"] = "1"
-from switch_mcp import changes, maintenance  # noqa: E402
+from legacy_switch_mcp import changes, maintenance  # noqa: E402
 
 args = [a for a in sys.argv[1:] if not a.startswith("--")]
 flags = {a for a in sys.argv[1:] if a.startswith("--")}

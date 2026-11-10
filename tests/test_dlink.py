@@ -3,7 +3,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from switch_mcp import dlinkweb, server, webui
+from legacy_switch_mcp import dlinkweb, server, webui
 
 FIX = Path(__file__).parent / "fixtures"
 

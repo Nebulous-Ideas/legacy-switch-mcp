@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from switch_mcp import discovery
+from legacy_switch_mcp import discovery
 
 FIX = Path(__file__).parent / "fixtures"
 
