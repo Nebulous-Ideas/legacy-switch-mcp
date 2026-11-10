@@ -1,6 +1,7 @@
 # legacy-switch-mcp
 
 [![CI](https://github.com/Nebulous-Ideas/legacy-switch-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/Nebulous-Ideas/legacy-switch-mcp/actions/workflows/ci.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Nebulous-Ideas/legacy-switch-mcp/badge)](https://scorecard.dev/viewer/?uri=github.com/Nebulous-Ideas/legacy-switch-mcp)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue.svg)
 ![MCP server](https://img.shields.io/badge/MCP-server-8A2BE2.svg)
