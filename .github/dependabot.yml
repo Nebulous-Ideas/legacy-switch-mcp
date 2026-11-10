@@ -8,6 +8,10 @@ updates:
       minor-and-patch:
         update-types: ["minor", "patch"]
     labels: ["dependencies"]
+    ignore:
+      # mcp 2.x renamed FastMCP to MCPServer; migrate deliberately (see README "Not implemented"), not via a bot bump.
+      - dependency-name: "mcp"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
