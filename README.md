@@ -5,6 +5,8 @@
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue.svg)
 ![MCP server](https://img.shields.io/badge/MCP-server-8A2BE2.svg)
 
+<!-- mcp-name: io.github.Nebulous-Ideas/legacy-switch-mcp -->
+
 > **Use at your own risk.** This tool can change VLANs, reboot switches and factory-reset them, and a bad change can cut you off from the switch.
 > It has been proven on hardware on exactly two models (USRobotics 7724, D-Link DGS-1100-08) and is fake-switch tested only elsewhere. Read the plan before applying it,
 > list your uplinks in `protected_ports`, and keep the maintenance switch off unless you need it. Provided as is, without warranty (see `LICENSE`).
@@ -15,6 +17,18 @@ An MCP server for two old "smart" switch families that no other MCP covers: the 
 It reads state and makes changes the careful way: **plan, then apply**. A plan writes nothing; it shows the exact differences and the risks (for VLANs:
 which connected ports would stop reaching each other, which ports leave the management VLAN). Applying needs the plan id and `confirm=true`, re-reads the switch
 and refuses if it changed, saves a snapshot, writes, reads back to verify, and returns a rollback plan.
+
+## Install
+No clone needed (needs [uv](https://docs.astral.sh/uv/)). First create `~/.config/switch-mcp/switches.json` and a password for each switch (see Setup below), then add the server to your MCP client:
+```bash
+claude mcp add switch -- uvx legacy-switch-mcp                                    # Claude Code
+claude mcp add switch --env SWITCH_MCP_TOOLSETS=read -- uvx legacy-switch-mcp     # look-only (fewest tokens)
+```
+Claude Desktop, Cursor and other clients take the same command in their JSON config:
+```json
+{"mcpServers": {"switch": {"command": "uvx", "args": ["legacy-switch-mcp"], "env": {"SWITCH_MCP_TOOLSETS": "read"}}}}
+```
+Until the package is on PyPI, use `uvx --from git+https://github.com/Nebulous-Ideas/legacy-switch-mcp legacy-switch-mcp`.
 
 ## Tools
 | Tool | What it does |
