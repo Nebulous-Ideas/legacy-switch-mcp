@@ -2,6 +2,8 @@ name: CI
 on:
   push:
   pull_request:
+permissions:
+  contents: read
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -9,8 +11,20 @@ jobs:
       matrix:
         python: ["3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
       - run: uv python install ${{ matrix.python }}
-      - run: uv sync --extra dev --python ${{ matrix.python }}
-      - run: uv run --python ${{ matrix.python }} pytest
+      - run: uv sync --frozen --extra dev --python ${{ matrix.python }}
+      - run: uv run --frozen --python ${{ matrix.python }} pytest
+  audit:
+    # Known-vulnerability check of the locked, hash-pinned dependency set.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+      - run: uv export --frozen --no-emit-project --format requirements-txt -o requirements.txt
+      - run: uvx pip-audit==2.10.1 -r requirements.txt --disable-pip

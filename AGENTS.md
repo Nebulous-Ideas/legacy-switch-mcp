@@ -26,3 +26,5 @@ CI runs the same on Python 3.11, 3.12 and 3.13: do not use newer-only features.
 
 ## Dependencies
 Dependabot opens weekly PRs (`uv`, `github-actions`). A bump is acceptable when CI is green; read the changelog for `mcp` (the SDK defines the tool schema) and re-run `tests/test_server.py` expectations for the registered tool set.
+
+GitHub Actions are pinned to commit SHAs (the `# vX` comment names the version); Dependabot updates both. When adding an action, pin it the same way. CI installs with `uv sync --frozen`, so change dependencies through `uv lock`, never by hand-editing `uv.lock`. CI also runs `pip-audit` on the locked set.

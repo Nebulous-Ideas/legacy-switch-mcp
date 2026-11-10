@@ -83,6 +83,7 @@ checks that a reboot plan is refused while maintenance is off. Run it only again
 Hardware-only checks (outages, factory reset, password) are in `scripts/maint.py`, `scripts/rotate_password.py` and `scripts/recover_after_reset.py`; see `docs/ADDING-SWITCHES.md` for the proof sequence.
 
 ## Safety
+See also `SECURITY.md` (threat model: plain-HTTP switches on a trusted management network; how to report a problem; supply-chain measures).
 - **Protected ports**: list uplinks in `switches.json` (`"protected_ports": [24]`); plans that touch them are refused unless `allow_protected=true`.
 - **Rollback survives failure**: the rollback plan is written to disk before any write, so if the switch stops answering mid-change it can still be applied from a new session.
 - **Audit log**: every plan, refusal and apply is appended to `~/.local/state/switch-mcp/audit.jsonl` (no credentials).
