@@ -1,9 +1,12 @@
-# Publish to PyPI when a GitHub release is published. Uses PyPI trusted publishing (OIDC): no token is stored anywhere.
-# One-time setup on pypi.org: add a "pending publisher" for this repo, workflow publish.yml, environment "pypi".
+# Publish to PyPI when a GitHub release is published, and attach an SBOM to that release.
+# PyPI uses trusted publishing (OIDC): no token is stored anywhere, and the action attaches signed provenance attestations.
+# One-time setup on pypi.org: a (pending) publisher for this repo, workflow publish.yml, environment "pypi".
 name: Publish
 on:
   release:
     types: [published]
+permissions:
+  contents: read
 jobs:
   pypi:
     runs-on: ubuntu-latest
@@ -12,7 +15,25 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
       - run: uv build
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+  sbom:
+    # CycloneDX SBOM of the locked dependency set (hash-pinned in uv.lock), attached to the release.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+      - run: uv export --frozen --no-emit-project --format cyclonedx1.5 -o sbom.cdx.json
+      - run: gh release upload "$TAG" sbom.cdx.json --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.event.release.tag_name }}
