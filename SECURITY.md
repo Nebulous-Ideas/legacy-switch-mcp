@@ -4,7 +4,7 @@
 Please report vulnerabilities privately through GitHub: **Security → Report a vulnerability** on this repository
 (https://github.com/Nebulous-Ideas/legacy-switch-mcp/security/advisories/new). Do not open a public issue for a security bug.
 Include the version, what you did, and what you saw; never include real passwords, configuration files or switch addresses.
-This is a volunteer project: expect an acknowledgement within a few days, not a service-level agreement.
+This is a volunteer project: expect an acknowledgement within 7 days and a fix or an assessment within 30 days, not a service-level agreement.
 
 ## Threat model (what this tool is and is not)
 - It manages old "smart" switches whose web interfaces speak **plain HTTP** with a simple login. Anyone who can see that traffic can read it.

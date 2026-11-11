@@ -1,0 +1,39 @@
+name: Bug report
+description: Something did not work, or a plan/apply did the wrong thing
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Never paste real passwords, configuration files, serial numbers or your switch addresses.** Use documentation addresses such as `192.0.2.10`.
+        Security problems go through the private report in SECURITY.md, not here.
+  - type: input
+    id: version
+    attributes:
+      label: legacy-switch-mcp version
+      placeholder: "0.1.1 (the version on PyPI or in uv tool list)"
+    validations:
+      required: true
+  - type: input
+    id: switch
+    attributes:
+      label: Switch model and firmware
+      placeholder: D-Link DGS-1100-08 / USRobotics 7724, firmware version
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What did you do, and what happened?
+      description: The tool calls you made and what came back. Say whether it was a plan, an apply or a read.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Python version, MCP client, relevant log lines (with addresses and secrets removed).
