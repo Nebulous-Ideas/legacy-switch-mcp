@@ -1,0 +1,24 @@
+name: Feature or new switch model
+description: Suggest a feature, or ask for support for another switch
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not paste real passwords, configuration files, serial numbers or addresses; use `192.0.2.x` examples.
+        For a new model, see docs/ADDING-SWITCHES.md for what is needed.
+  - type: textarea
+    id: want
+    attributes:
+      label: What would you like to be able to do?
+    validations:
+      required: true
+  - type: input
+    id: switch
+    attributes:
+      label: Switch model and firmware (if about a specific switch)
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything you already know
+      description: Web interface behaviour, page names, how the switch behaves on discovery.
