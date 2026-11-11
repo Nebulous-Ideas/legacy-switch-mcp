@@ -1,6 +1,6 @@
 [project]
 name = "legacy-switch-mcp"
-version = "0.1.2"
+version = "0.2.0"
 description = "MCP server for old smart switches (D-Link DGS-1100, USRobotics 7724): plan-then-apply VLAN, port and trunk changes with read-back verification and rollback"
 license = "MIT"
 license-files = ["LICENSE"]
