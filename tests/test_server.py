@@ -20,13 +20,13 @@ def test_probe_reports_no_reply(monkeypatch):
 import asyncio
 import json
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 
 BOTH = {"a": {"host": "192.0.2.1", "vendor": "usrobotics"}, "b": {"host": "192.0.2.2", "vendor": "dlink"}}
 
 
 def names_for(env, switches=BOTH):
-    s = FastMCP("t")
+    s = MCPServer("t")
     server.register_tools(s, server.selected_toolsets(env, switches))
     return {t.name for t in asyncio.run(s.list_tools())}
 
@@ -61,18 +61,18 @@ def test_toolsets_can_be_chosen_explicitly_and_typos_are_refused():
 
 
 def test_tool_descriptions_stay_short():
-    s = FastMCP("t")
+    s = MCPServer("t")
     server.register_tools(s, set(server.TOOLSETS))
     tools = asyncio.run(s.list_tools())
     assert max(len(t.description) for t in tools) < 330
-    assert sum(len(t.description) + len(str(t.inputSchema)) for t in tools) < 14000
+    assert sum(len(t.description) + len(str(t.input_schema)) for t in tools) < 14000
 
 
 def test_schema_titles_are_stripped_but_arguments_are_still_validated():
-    s = FastMCP("t")
+    s = MCPServer("t")
     server.register_tools(s, {"read"})
     server.slim_schemas(s)
     tools = {t.name: t for t in asyncio.run(s.list_tools())}
-    assert "title" not in json.dumps(tools["discover"].inputSchema)
-    assert set(tools["discover"].inputSchema["properties"]) == {"interface", "wait_seconds"}
-    assert tools["discover"].inputSchema["required"] == ["interface"]
+    assert "title" not in json.dumps(tools["discover"].input_schema)
+    assert set(tools["discover"].input_schema["properties"]) == {"interface", "wait_seconds"}
+    assert tools["discover"].input_schema["required"] == ["interface"]

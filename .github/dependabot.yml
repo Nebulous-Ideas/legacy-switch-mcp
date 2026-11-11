@@ -9,7 +9,7 @@ updates:
         update-types: ["minor", "patch"]
     labels: ["dependencies"]
     ignore:
-      # mcp 2.x renamed FastMCP to MCPServer; migrate deliberately (see README "Not implemented"), not via a bot bump.
+      # The SDK defines the tool schema, so a new major version (3.x) is migrated deliberately and tested against the fake switches, not via a bot bump.
       - dependency-name: "mcp"
         update-types: ["version-update:semver-major"]
   - package-ecosystem: "github-actions"
