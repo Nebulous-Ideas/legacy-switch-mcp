@@ -34,7 +34,7 @@ async def main() -> int:
             async def call(name, **args):
                 res = await s.call_tool(name, args)
                 text = res.content[0].text if res.content else ""
-                return res.isError, (json.loads(text) if text.startswith(("{", "[")) else text)
+                return res.is_error, (json.loads(text) if text.startswith(("{", "[")) else text)
 
             def check(label, ok, detail=""):
                 print(("ok   " if ok else "FAIL ") + label + (f"  {detail}" if detail and not ok else ""))

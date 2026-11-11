@@ -145,7 +145,6 @@ See also `SECURITY.md` (threat model: plain-HTTP switches on a trusted managemen
 ### Not implemented
 | Item | Why |
 |---|---|
-| Support for `mcp` 2.x | planned: the SDK renamed `FastMCP` to `MCPServer` and changed other APIs, so the package pins `mcp<2` for now. A migration branch will be tested against the fake switches before the pin is widened. |
 | Firmware upgrade (D-Link `FWUpgrade.cgi`; the vendor utility uses TFTP) | the upload protocol behind the button is unknown (the page only has buttons), and a bad image or a power cut during the write can brick the switch. `backup_firmware` keeps a copy of the running image. |
 | The vendor utility's SOAP/UDP channel for writes (`SetDeviceCfg`, TFTP) | not captured; the web channel covers everything above. |
 | DHCP (instead of a static address), 802.1Q mode switch | no need so far; the D-Link `set_ip.cgi` supports DHCP, which would make the switch's address unpredictable. |

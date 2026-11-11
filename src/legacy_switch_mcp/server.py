@@ -13,11 +13,11 @@ from __future__ import annotations
 
 import os
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 
 from . import changes, discovery, dlinkchanges, dlinkweb, maintenance, reports, webui
 
-mcp = FastMCP("switch-mcp")
+mcp = MCPServer("switch-mcp")
 
 
 # ---- read ---------------------------------------------------------------------------------------------------------------------
@@ -235,7 +235,7 @@ def selected_toolsets(environ: dict | None = None, switches: dict | None = None)
     return chosen
 
 
-def register_tools(server: FastMCP, toolsets: set[str]) -> list[str]:
+def register_tools(server: MCPServer, toolsets: set[str]) -> list[str]:
     names: list[str] = []
     for ts in TOOLSETS:
         if ts in toolsets:
@@ -264,7 +264,7 @@ def _strip_titles(node) -> None:
             _strip_titles(v)
 
 
-def slim_schemas(server: FastMCP) -> None:
+def slim_schemas(server: MCPServer) -> None:
     """Best effort: the arguments are still validated by the generated models; only the description JSON sent to the client gets smaller."""
     try:
         for tool in server._tool_manager.list_tools():

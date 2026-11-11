@@ -5,6 +5,7 @@ Human-readable notes for each release. The same text appears on the
 Each entry says whether the release fixes a publicly known vulnerability.
 
 ## Unreleased
+- Now requires the `mcp` SDK 2.x (`mcp>=2.3,<3`); `FastMCP` became `MCPServer`. Users who pin `mcp` 1.x in the same environment must stay on 0.1.2. Tools, arguments and behaviour are unchanged, and the server was checked over a real stdio MCP session.
 
 ## 0.1.2 - 2026-11-11
 - A pre-release gate (development mode, warnings as errors, heavier property-test run) must pass before a release is published; it found and fixed an unclosed file handle in the stored-file checksum check.
