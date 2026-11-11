@@ -18,6 +18,7 @@ Releases = "https://github.com/Nebulous-Ideas/legacy-switch-mcp/releases"
 dev = [
     "hypothesis>=6",
     "pytest>=8",
+    "ruff>=0.17.4",
 ]
 
 [project.scripts]
@@ -36,3 +37,14 @@ packages = ["src/legacy_switch_mcp"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 160
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "B"]
+ignore = ["E731", "B905"]   # lambda assignment and zip strictness: style, not defects
+
+[tool.ruff.lint.per-file-ignores]
+"tests/test_server.py" = ["E402"]   # section comments between import blocks
