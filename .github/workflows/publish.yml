@@ -51,7 +51,7 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
   sign:
     # Keyless Sigstore signatures (*.sigstore.json) for the exact files published to PyPI, attached to the release.
-    # Verify with: sigstore verify github --cert-identity-repo Nebulous-Ideas/legacy-switch-mcp <file>
+    # Verify with: sigstore verify github --repository Nebulous-Ideas/legacy-switch-mcp <file>
     needs: build
     runs-on: ubuntu-latest
     permissions:

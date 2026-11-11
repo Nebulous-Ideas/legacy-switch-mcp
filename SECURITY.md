@@ -38,7 +38,7 @@ the management path cannot be undone remotely. Keep out-of-band access and a kno
 - Releases are published to PyPI by GitHub Actions through trusted publishing (no stored token) and carry provenance attestations;
   each GitHub release has a CycloneDX SBOM attached (`sbom.cdx.json`).
   Each release also carries the built files with keyless Sigstore signatures (`*.sigstore.json`); verify with
-  `sigstore verify github --cert-identity-repo Nebulous-Ideas/legacy-switch-mcp <file>` (from the release assets). Signing starts with the first release after this was added.
+  `sigstore verify github --repository Nebulous-Ideas/legacy-switch-mcp <file>` (from the release assets). Releases from 0.1.2 on carry signatures; the `.sigstore.json` file sits next to each file on the release page.
 - GitHub Actions are pinned to commit SHAs.
 
 ## Supported versions
