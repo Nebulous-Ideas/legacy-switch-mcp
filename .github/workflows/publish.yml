@@ -9,7 +9,22 @@ on:
 permissions:
   contents: read
 jobs:
+  gate:
+    # Dynamic analysis before anything is published: the tests under Python's development mode with warnings as errors,
+    # and the Hypothesis property tests (parser fuzzing) at a much higher example count than in everyday CI.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+      - run: uv sync --frozen --extra dev
+      - run: uv run --frozen pytest -W error
+        env:
+          PYTHONDEVMODE: "1"
+          HYPOTHESIS_PROFILE: release
   build:
+    needs: gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

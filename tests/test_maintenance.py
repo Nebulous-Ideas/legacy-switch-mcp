@@ -2,6 +2,7 @@
 import json
 import os
 import stat
+from pathlib import Path
 
 import httpx
 import pytest
@@ -45,7 +46,7 @@ def test_backup_config_is_stored_privately_and_never_returned(mt, switch, blob):
     meta = maintenance.backup_config(switch)
     assert blob.decode() not in json.dumps(meta)
     f = meta["path"]
-    assert open(f, "rb").read() == blob and stat.S_IMODE(os.stat(f).st_mode) == 0o600
+    assert Path(f).read_bytes() == blob and stat.S_IMODE(os.stat(f).st_mode) == 0o600
     assert maintenance.list_files(switch)[0]["id"] == meta["id"] and "sha256" not in maintenance.list_files(switch)[0]
 
 
@@ -206,7 +207,8 @@ def test_restore_uses_only_a_stored_file_for_the_same_switch(mt, monkeypatch):
 
 def test_a_tampered_stored_file_is_refused(mt):
     meta = maintenance.backup_config("usr-test")
-    open(meta["path"], "ab").write(b"x")
+    with open(meta["path"], "ab") as fh:
+        fh.write(b"x")
     with pytest.raises(ValueError, match="checksum"):
         maintenance.plan_restore_config("usr-test", meta["id"])
 
