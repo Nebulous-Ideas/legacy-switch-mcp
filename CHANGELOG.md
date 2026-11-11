@@ -5,6 +5,7 @@ Human-readable notes for each release. The same text appears on the
 Each entry says whether the release fixes a publicly known vulnerability.
 
 ## Unreleased
+- A pre-release gate (development mode, warnings as errors, heavier property-test run) must pass before a release is published; it found and fixed an unclosed file handle in the stored-file checksum check.
 - Hypothesis property tests for the parsers; fixed a crash on form controls without a `name` attribute.
 - `CONTRIBUTING.md`, issue templates, and a ruff lint check in CI.
 - Release files are signed with Sigstore (from the next release on) and the registry entry is published from GitHub Actions.

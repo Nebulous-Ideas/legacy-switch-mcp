@@ -4,14 +4,10 @@ A parser may reject input with ValueError (parse_reply documents that); anything
 """
 import struct
 
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, strategies as st
 
 from legacy_switch_mcp import discovery, dlinkweb, webui
 
-FAST = settings(max_examples=200, deadline=None)
-
-
-@FAST
 @given(st.binary(max_size=600))
 def test_parse_reply_never_crashes(buf):
     try:
@@ -21,7 +17,6 @@ def test_parse_reply_never_crashes(buf):
     assert isinstance(out, dict) and "mac" in out
 
 
-@FAST
 @given(st.lists(st.tuples(st.integers(0, 0xFFFF), st.binary(max_size=40)), min_size=1, max_size=12))
 def test_parse_reply_tlv_walk_terminates(tlvs):
     body = b"".join(struct.pack(">HH", t, len(v) + 4) + v for t, v in tlvs)
@@ -29,13 +24,11 @@ def test_parse_reply_tlv_walk_terminates(tlvs):
     assert isinstance(discovery.parse_reply(buf), dict)
 
 
-@FAST
 @given(st.text(max_size=400))
 def test_parse_js_vars_never_crashes(text):
     assert isinstance(dlinkweb.parse_js_vars(text), dict)
 
 
-@FAST
 @given(st.text(max_size=600))
 def test_extract_never_crashes(html):
     page = webui.extract(html)
@@ -58,7 +51,6 @@ def tag_soup(draw):
     return "".join(out)
 
 
-@FAST
 @given(tag_soup())
 def test_page_parsers_fail_cleanly_on_tag_soup(html):
     """Wrong-shaped pages may raise StopIteration/KeyError-style lookups today; they must not hang or corrupt, and extract() itself must work."""

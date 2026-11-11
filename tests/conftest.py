@@ -1,8 +1,15 @@
 import json
+import os
 
 import pytest
+from hypothesis import settings
 
 from legacy_switch_mcp import webui
+
+# Property tests: a quick default for everyday runs, and a much heavier profile the release workflow selects (HYPOTHESIS_PROFILE=release).
+settings.register_profile("default", max_examples=200, deadline=None)
+settings.register_profile("release", max_examples=5000, deadline=None)
+settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "default"))
 
 
 @pytest.fixture(autouse=True)

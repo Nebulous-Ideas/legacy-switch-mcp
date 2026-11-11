@@ -14,6 +14,7 @@ import os
 import secrets
 import string
 import subprocess
+from pathlib import Path
 import time
 
 import httpx
@@ -61,7 +62,7 @@ def _load_file(switch: str, file_id: str, kind: str) -> tuple[dict, bytes]:
     for f in (safety.STATE_DIR / "files" / switch).glob("*.json") if (safety.STATE_DIR / "files" / switch).exists() else []:
         m = json.loads(f.read_text())
         if m["id"] == file_id and m["kind"] == kind:
-            data = open(m["path"], "rb").read()
+            data = Path(m["path"]).read_bytes()
             if hashlib.sha256(data).hexdigest() != m["sha256"]:
                 raise ValueError(f"stored file {file_id} no longer matches its checksum; refusing to use it")
             return m, data
