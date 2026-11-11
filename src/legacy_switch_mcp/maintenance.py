@@ -19,7 +19,7 @@ import time
 import httpx
 
 from . import dlinkweb, safety, webui
-from .safety import audit, guard_protected
+from .safety import audit
 
 POLL = 3.0          # seconds between reachability checks after a reboot, reset, restore or IP change
 DOWN_WAIT = 25.0    # how long to watch for the switch going away
@@ -135,7 +135,7 @@ def plan_ip(switch: str, ip: str, netmask: str, gateway: str, allow_ip_change: b
         net = ipaddress.ip_network(f"{ip}/{netmask}", strict=False)
         addr, gw = ipaddress.ip_address(ip), ipaddress.ip_address(gateway)
     except ValueError as e:
-        raise ValueError(f"not a valid address/mask/gateway: {e}")
+        raise ValueError(f"not a valid address/mask/gateway: {e}") from e
     if addr not in net or gw not in net or addr == gw or addr in (net.network_address, net.broadcast_address):
         raise ValueError("the address and gateway must be different usable hosts in the same subnet")
     host = webui.load_switches()[switch]["host"]
@@ -174,7 +174,7 @@ def plan_factory_reset(switch: str, allow_protected: bool = False) -> dict:
 
 
 def plan_restore_config(switch: str, file_id: str, allow_protected: bool = False) -> dict:
-    vendor = _vendor(switch)
+    _vendor(switch)
     meta, _ = _load_file(switch, file_id, "config")
     risks = _all_ports_guard(switch, allow_protected, "a configuration restore")
     risks += ["the switch reboots and takes on EVERYTHING in the file: VLANs, ports, address and password; check that the file is the one you mean.",
@@ -206,7 +206,6 @@ def _wait_down_then_up(switch: str, switches: dict | None = None) -> dict:
             went_down = True
             break
         time.sleep(POLL)
-    t1 = time.time()
     while time.time() - t0 < DOWN_WAIT + UP_WAIT:
         if _login_ok(switch, switches=switches):
             return {"went_down": went_down, "back": True, "seconds_until_back": round(time.time() - t0)}

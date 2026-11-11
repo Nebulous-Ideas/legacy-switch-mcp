@@ -11,11 +11,10 @@ import re
 import time
 import uuid
 from dataclasses import asdict, dataclass, field, fields
-from pathlib import Path
 
 import httpx
 
-from . import dlinkchanges, dlinkweb, safety, webui
+from . import dlinkchanges, safety, webui
 from .safety import audit, guard_protected
 
 PLAN_TTL = 600.0            # a normal plan is good for ten minutes
